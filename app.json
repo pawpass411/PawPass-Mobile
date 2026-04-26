@@ -1,0 +1,122 @@
+{
+  "expo": {
+    "name": "PawPass",
+    "slug": "pawpass",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "pawpass",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#080F08"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.apawcalypse.pawpass",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "PawPass uses your location to find service-dog-friendly businesses and parks near you.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "PawPass uses your location to find service-dog-friendly businesses and parks near you.",
+        "NSCameraUsageDescription": "PawPass uses your camera to add photos to access concern reports.",
+        "NSPhotoLibraryUsageDescription": "PawPass accesses your photo library to attach evidence to reports.",
+        "NSMicrophoneUsageDescription": "PawPass may use your microphone for video evidence recording.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "clerk",
+            "CFBundleURLSchemes": ["pawpass"]
+          }
+        ]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
+      }
+    },
+    "android": {
+      "package": "com.apawcalypse.pawpass",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon/foreground.png",
+        "backgroundImage": "./assets/adaptive-icon/background.png",
+        "backgroundColor": "#080F08"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ],
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "pawpass.app",
+              "pathPrefix": "/verify"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiBaseUrl": "https://pawpass.app",
+      "clerkPublishableKey": "",
+      "stripePublishableKey": "",
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PawPass uses your location to find service-dog-friendly businesses near you."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PawPass accesses your photos to attach evidence to reports.",
+          "cameraPermission": "PawPass uses your camera to take evidence photos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#AAFF00",
+          "sounds": []
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
