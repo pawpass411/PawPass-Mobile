@@ -7,6 +7,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, Badge, Alert, PawText, TrustScoreRing, StarRating, Input, Button, Divider } from "../../src/components/ui";
+import { ReviewForm } from "../../src/components/reviews/review-form";
 import { api, BusinessDetail } from "../../src/lib/api";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
 
@@ -19,11 +20,11 @@ const BADGE_CONFIG: Record<string, "green"|"cyan"|"yellow"|"red"|"purple"> = {
 };
 
 export default function BusinessDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>();
   const insets = useSafeAreaInsets();
   const [biz, setBiz] = useState<BusinessDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("Overview");
+  const [tab, setTab] = useState<Tab>(initialTab === "write" ? "Write Review" : "Overview");
   const [rating, setRating] = useState(0);
   const [accessRating, setAccessRating] = useState(0);
   const [reviewBody, setReviewBody] = useState("");
@@ -38,6 +39,10 @@ export default function BusinessDetailScreen() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (initialTab === "write") setTab("Write Review");
+  }, [initialTab]);
 
   const submitReview = async () => {
     if (!rating || reviewBody.length < 20 || !biz?.location) return;
@@ -178,7 +183,12 @@ export default function BusinessDetailScreen() {
           )}
 
           {/* WRITE REVIEW */}
-          {tab === "Write Review" && (
+          {tab === "Write Review" && biz.location && (
+            <ReviewForm
+              target={{ kind: "business", businessLocationId: biz.location.id, placeName: biz.name }}
+            />
+          )}
+          {false && tab === "Write Review" && (
             <Card>
               {submitted ? (
                 <View style={{ alignItems: "center", padding: Spacing[6] }}>

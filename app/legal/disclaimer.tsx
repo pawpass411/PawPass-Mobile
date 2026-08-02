@@ -9,7 +9,7 @@ export default function DisclaimerScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: Colors.bg }} contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 40 }]}>
       <PawText variant="h1" style={{ marginBottom: 4 }}>Platform Disclaimer</PawText>
-      <PawText variant="caption" color={Colors.dim} style={{ marginBottom: Spacing[5] }}>Apawcalypse LLC</PawText>
+      <PawText variant="caption" color={Colors.dim} style={{ marginBottom: Spacing[5] }}>Stodghill Consulting LLC</PawText>
 
       <Alert variant="warn" style={{ marginBottom: Spacing[5] }}>
         Please read this disclaimer before using PawPass. By using the app, you acknowledge and agree to the following.
@@ -42,11 +42,11 @@ export default function DisclaimerScreen() {
         },
         {
           title: "Limitation of Liability",
-          body: "Apawcalypse LLC is not liable for any harm, damages, or losses arising from your use of PawPass, reliance on information or reviews on the platform, or outcomes of access concern reports. See our Terms of Service for the full limitation of liability.",
+          body: "Stodghill Consulting LLC is not liable for any harm, damages, or losses arising from your use of PawPass, reliance on information or reviews on the platform, or outcomes of access concern reports. See our Terms of Service for the full limitation of liability.",
         },
         {
           title: "Contact",
-          body: "Questions about this disclaimer:\nlegal@pawpass.app\n\nApawcalypse LLC\n© " + new Date().getFullYear() + " All rights reserved.",
+          body: "Questions about this disclaimer can be sent through Contact Us in the PawPass app.\n\nPawPass is operated by Stodghill Consulting LLC.\n© " + new Date().getFullYear() + " All rights reserved.",
         },
       ].map((s, i) => (
         <View key={i} style={styles.section}>

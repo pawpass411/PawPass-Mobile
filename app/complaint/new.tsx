@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Input, Alert, Badge, Card, PawText } from "../../src/components/ui";
 import { api, ApiError } from "../../src/lib/api";
 import { Colors, Spacing, Radius, Typography } from "../../src/lib/theme";
+import { useProtectedRoute } from "../../src/hooks/useProtectedRoute";
 
 const CATEGORIES = [
   { value: "entry_denied",            label: "Entry was refused or blocked" },
@@ -42,6 +43,7 @@ interface FormState {
 export default function ComplaintNewScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ businessId?: string; businessName?: string; locationId?: string }>();
+  const { isLoaded, isSignedIn } = useProtectedRoute();
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +63,14 @@ export default function ComplaintNewScreen() {
     wantsMediation:     false,
     isPrivate:          false,
   });
+
+  if (!isLoaded || !isSignedIn) {
+    return (
+      <View style={styles.authGate}>
+        <PawText variant="body" color={Colors.muted}>Opening secure sign in…</PawText>
+      </View>
+    );
+  }
 
   const set = <K extends keyof FormState>(key: K, val: FormState[K]) =>
     setForm(f => ({ ...f, [key]: val }));
@@ -373,5 +383,12 @@ const styles = StyleSheet.create({
   doneContainer: {
     flex: 1, backgroundColor: Colors.bg,
     padding: Spacing[6], alignItems: "center", justifyContent: "center",
+  },
+  authGate: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.bg,
+    padding: Spacing[6],
   },
 });

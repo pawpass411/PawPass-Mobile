@@ -115,7 +115,7 @@ export default function SignUpScreen() {
           </TouchableOpacity>
         </View>
         <PawText variant="micro" color={Colors.ghost} style={{ textAlign: "center", marginTop: 6, lineHeight: 15 }}>
-          Reviews are community experiences, not legal findings.{"\n"}© {new Date().getFullYear()} Apawcalypse LLC
+          Reviews are community experiences, not legal findings.{"\n"}© {new Date().getFullYear()} Stodghill Consulting LLC
         </PawText>
       </ScrollView>
     </KeyboardAvoidingView>

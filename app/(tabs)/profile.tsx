@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  View, ScrollView, TouchableOpacity, Text, StyleSheet, Alert,
+  View, ScrollView, TouchableOpacity, Text, StyleSheet, Alert, Linking, Image,
 } from "react-native";
 import { router } from "expo-router";
 import { useAuth, useUser } from "@clerk/clerk-expo";
@@ -41,16 +41,20 @@ function SectionHeader({ label }: { label: string }) {
 }
 
 export default function ProfileScreen() {
-  const { signOut } = useAuth();
+  const { signOut, isSignedIn, isLoaded } = useAuth();
   const { user: clerkUser } = useUser();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setProfile(null);
+      return;
+    }
     api.users.me()
       .then(d => setProfile(d.user))
       .catch(() => {});
-  }, []);
+  }, [isLoaded, isSignedIn]);
 
   const handleSignOut = () => {
     Alert.alert(
@@ -70,8 +74,38 @@ export default function ProfileScreen() {
     );
   };
 
-  const displayName = profile?.name ?? clerkUser?.firstName ?? "Your Account";
+  const displayName =
+    clerkUser?.fullName ??
+    clerkUser?.firstName ??
+    profile?.name ??
+    "Your Account";
   const email = profile?.email ?? clerkUser?.primaryEmailAddress?.emailAddress ?? "";
+
+  if (isLoaded && !isSignedIn) {
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: Colors.bg }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
+      >
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <View style={{ flex: 1 }}>
+            <PawText variant="h2">Sign in to PawPass</PawText>
+            <PawText variant="body" color={Colors.muted} style={{ marginTop: Spacing[2], lineHeight: 22 }}>
+              Your profile keeps reviews, reports, training notices, and PawPass learning resources in one place.
+            </PawText>
+          </View>
+        </View>
+        <View style={{ padding: Spacing[4], gap: Spacing[3] }}>
+          <Button onPress={() => router.push("/(auth)/sign-in")} fullWidth>
+            Sign in
+          </Button>
+          <Button onPress={() => router.push("/(auth)/sign-up")} variant="secondary" fullWidth>
+            Create account
+          </Button>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -81,15 +115,27 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.avatar}>
-          <PawPassMark size={40}/>
+          {clerkUser?.imageUrl ? (
+            <Image
+              source={{ uri: clerkUser.imageUrl }}
+              style={styles.avatarImage}
+              accessibilityLabel={`${displayName}'s profile picture`}
+            />
+          ) : (
+            <PawPassMark size={40}/>
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <PawText variant="h3">{displayName}</PawText>
           <PawText variant="caption" color={Colors.dim}>{email}</PawText>
-          <View style={{ flexDirection: "row", gap: Spacing[2], marginTop: Spacing[2] }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: Spacing[2], marginTop: Spacing[2] }}>
             {profile?.isHandler && <Badge variant="green">Handler</Badge>}
+            {profile?.role === "TRAINER" && <Badge variant="purple">Trainer</Badge>}
+            {profile?.role === "PUBLIC" && <Badge variant="cyan">Dog Owner</Badge>}
             {profile?.role === "ADMIN" && <Badge variant="red">Admin</Badge>}
-            {profile?.role === "BUSINESS" && <Badge variant="purple">Business</Badge>}
+            {profile?.foundingMemberNumber && (
+              <Badge variant="yellow">Founding Member #{profile.foundingMemberNumber}</Badge>
+            )}
           </View>
         </View>
       </View>
@@ -100,20 +146,34 @@ export default function ProfileScreen() {
           {[
             { value: profile.stats.reviews, label: "Reviews" },
             { value: profile.stats.complaints, label: "Reports" },
+            { value: profile.stats.incidentLogs, label: "Log Entries" },
           ].map(s => (
             <View key={s.label} style={styles.statBox}>
               <PawText variant="h2" color={Colors.accent}>{s.value}</PawText>
               <PawText variant="caption" color={Colors.dim}>{s.label}</PawText>
             </View>
           ))}
-          {profile.businesses.length > 0 && (
-            <View style={styles.statBox}>
-              <PawText variant="h2" color={Colors.info}>{profile.businesses.length}</PawText>
-              <PawText variant="caption" color={Colors.dim}>Business{profile.businesses.length !== 1 ? "es" : ""}</PawText>
-            </View>
-          )}
         </View>
       )}
+
+      {profile?.businesses.length ? (
+        <>
+          <SectionHeader label="BUSINESS"/>
+          <View style={styles.desktopNotice}>
+            <PawText variant="body" weight="bold">Business tools are on desktop</PawText>
+            <PawText variant="caption" color={Colors.muted} style={{ marginTop: 6, lineHeight: 18 }}>
+              Claims, billing, staff training, verification, and business settings are managed from the PawPass web portal.
+            </PawText>
+            <TouchableOpacity
+              onPress={() => Linking.openURL("https://pawpass411.com/business/dashboard")}
+              style={styles.desktopButton}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: "#0D1F0D", fontWeight: "900" }}>Open business portal</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : null}
 
       {/* Account */}
       <SectionHeader label="ACCOUNT"/>
@@ -123,12 +183,6 @@ export default function ProfileScreen() {
         <MenuRow icon="" label="My Reports" onPress={() => router.push("/reports/mine")}/>
         <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
         <MenuRow icon="" label="Incident Log" onPress={() => router.push("/incident-log")}/>
-        {profile?.businesses.length ? (
-          <>
-            <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
-            <MenuRow icon="" label="Business Dashboard" onPress={() => router.push("/business/dashboard")}/>
-          </>
-        ) : null}
       </View>
 
       {/* Settings */}
@@ -159,7 +213,9 @@ export default function ProfileScreen() {
       {/* Support */}
       <SectionHeader label="SUPPORT"/>
       <View style={styles.menuSection}>
-        <MenuRow icon="" label="Send Feedback" onPress={() => router.push("/feedback")}/>
+        <MenuRow icon="" label="PawPass Learning" onPress={() => router.push("/(tabs)/learn")}/>
+        <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
+        <MenuRow icon="" label="Contact Us" onPress={() => router.push("/feedback")}/>
         <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
         <MenuRow icon="" label="Help & FAQ" onPress={() => router.push("/(tabs)/learn")}/>
       </View>
@@ -172,9 +228,8 @@ export default function ProfileScreen() {
 
       {/* App info */}
       <View style={{ alignItems: "center", padding: Spacing[6] }}>
-        <PawPassMark size={24}/>
-        <PawText variant="micro" color={Colors.ghost} style={{ marginTop: 8, textAlign: "center" }}>
-          PawPass 1.0.0 by Apawcalypse LLC{"\n"}
+        <PawText variant="micro" color={Colors.ghost} style={{ textAlign: "center" }}>
+          PawPass 1.0.0 by Stodghill Consulting LLC{"\n"}
           Reviews are community experiences, not legal findings.
         </PawText>
       </View>
@@ -197,6 +252,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accentDim,
     borderWidth: 2, borderColor: Colors.accent,
     alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   statsRow: {
     flexDirection: "row",
@@ -220,5 +280,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing[4],
     paddingVertical: Spacing[3] + 2,
     minHeight: 52,
+  },
+  desktopNotice: {
+    marginHorizontal: Spacing[4],
+    marginBottom: Spacing[3],
+    padding: Spacing[4],
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border2,
+    backgroundColor: Colors.surface,
+  },
+  desktopButton: {
+    marginTop: Spacing[3],
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.accent,
   },
 });

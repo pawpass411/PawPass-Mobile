@@ -9,7 +9,7 @@ export default function AuthLayout() {
 
   // Redirect authenticated users to main app
   if (isLoaded && isSignedIn) {
-    return <Redirect href="/(tabs)"/>;
+    return <Redirect href="/(tabs)/home"/>;
   }
 
   return (

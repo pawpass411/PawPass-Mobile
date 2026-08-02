@@ -6,22 +6,36 @@ import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 
 const BASE_URL = (
-  Constants.expoConfig?.extra?.apiBaseUrl ??
   process.env.EXPO_PUBLIC_API_BASE_URL ??
-  "https://pawpass.app"
+  Constants.expoConfig?.extra?.apiBaseUrl ??
+  "https://pawpass411.com"
 );
+
+type AuthTokenGetter = () => Promise<string | null>;
+let authTokenGetter: AuthTokenGetter | null = null;
+
+export function configureApiAuth(getToken: AuthTokenGetter) {
+  authTokenGetter = getToken;
+}
 
 // ─── REQUEST HELPER ──────────────────────────────────
 async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = await SecureStore.getItemAsync("session_token").catch(() => null);
+  const clerkToken = authTokenGetter
+    ? await authTokenGetter().catch(() => null)
+    : null;
+  const legacyToken = clerkToken
+    ? null
+    : await SecureStore.getItemAsync("session_token").catch(() => null);
+  const token = clerkToken ?? legacyToken;
 
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const res = await fetch(`${BASE_URL}/api${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
       Accept: "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers ?? {}),
@@ -47,6 +61,44 @@ export class ApiError extends Error {
 
 // Businesses
 export const api = {
+  places: {
+    ensureRecord: (data: {
+      googlePlaceId: string;
+      name: string;
+      formattedAddress: string;
+      city?: string;
+      state?: string;
+      lat?: number | null;
+      lng?: number | null;
+      placeTypes?: string[];
+    }) => request<{
+      success: boolean;
+      businessId: string;
+      locationId: string;
+      businessSlug?: string;
+    }>("/places/ensure-record", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+    nearby: (params: { lat: number; lng: number; radius?: number; type?: string }) => {
+      const p = new URLSearchParams();
+      p.set("lat", String(params.lat));
+      p.set("lng", String(params.lng));
+      if (params.radius) p.set("radius", String(params.radius));
+      if (params.type) p.set("type", params.type);
+      return request<{ results: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/nearby?${p}`);
+    },
+
+    search: (params: { query: string; type?: string; lat?: number; lng?: number }) => {
+      const p = new URLSearchParams();
+      p.set("query", params.query);
+      if (params.type) p.set("type", params.type);
+      if (params.lat != null) p.set("lat", String(params.lat));
+      if (params.lng != null) p.set("lng", String(params.lng));
+      return request<{ results: UnifiedListing[]; featured?: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/search?${p}`);
+    },
+  },
+
   businesses: {
     list: (params?: {
       q?: string;
@@ -75,11 +127,26 @@ export const api = {
   },
 
   parks: {
-    list: (params?: { q?: string; state?: string; type?: string; page?: number }) => {
+    promote: (data: {
+      name: string;
+      formattedAddress: string;
+      city?: string;
+      state?: string;
+      lat?: number | null;
+      lng?: number | null;
+      parkType?: string;
+    }) => request<{ success: boolean; parkId: string; parkSlug?: string }>("/parks/promote", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+    list: (params?: { q?: string; state?: string; type?: string; lat?: number; lng?: number; radius?: number; page?: number }) => {
       const p = new URLSearchParams();
       if (params?.q)     p.set("q", params.q);
       if (params?.state) p.set("state", params.state);
       if (params?.type)  p.set("type", params.type);
+      if (params?.lat != null) p.set("lat", String(params.lat));
+      if (params?.lng != null) p.set("lng", String(params.lng));
+      if (params?.radius) p.set("radius", String(params.radius));
       if (params?.page)  p.set("page", String(params.page));
       return request<{ results: ParkListing[]; total: number; pages: number }>(`/parks?${p}`);
     },
@@ -97,10 +164,17 @@ export const api = {
       body: string;
     }) => request<{ review: Review }>("/reviews", { method: "POST", body: JSON.stringify(data) }),
 
-    list: (params?: { locationId?: string; parkId?: string; page?: number }) => {
+    createForm: (form: FormData) =>
+      request<{ review: Review }>("/reviews", { method: "POST", body: form }),
+
+    update: (id: string, data: { overallRating: number; accessRating?: number | null; body: string }) =>
+      request<{ review: Review }>(`/reviews/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+    list: (params?: { locationId?: string; parkId?: string; mine?: boolean; page?: number }) => {
       const p = new URLSearchParams();
       if (params?.locationId) p.set("locationId", params.locationId);
       if (params?.parkId)     p.set("parkId", params.parkId);
+      if (params?.mine)       p.set("mine", "true");
       if (params?.page)       p.set("page", String(params.page));
       return request<{ reviews: Review[]; total: number }>(`/reviews?${p}`);
     },
@@ -151,6 +225,19 @@ export const api = {
       }),
   },
 
+  contact: {
+    submit: (data: {
+      name: string;
+      email: string;
+      category: string;
+      subject: string;
+      message: string;
+    }) => request<{ ok: boolean; id: string }>("/contact", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  },
+
   notifications: {
     list: () => request<{ notifications: Notification[] }>("/notifications"),
 
@@ -198,8 +285,9 @@ export const api = {
   },
 
   rules: {
-    effective: (params?: { state?: string; businessType?: string }) => {
+    effective: (params?: { country?: "US" | "CA" | "GB"; state?: string; businessType?: string }) => {
       const p = new URLSearchParams();
+      if (params?.country)      p.set("country", params.country);
       if (params?.state)        p.set("state", params.state);
       if (params?.businessType) p.set("businessType", params.businessType);
       return request<{ rules: EffectiveRules }>(`/rules/effective?${p}`);
@@ -223,6 +311,42 @@ export interface BusinessListing {
   avgAccessRating: number | null;
 }
 
+export interface UnifiedListing {
+  key?: string;
+  googlePlaceId: string | null;
+  pawpassBusinessId: string | null;
+  pawpassLocationId: string | null;
+  name: string;
+  entityType?: string;
+  displayType?: string;
+  formattedAddress: string;
+  city: string;
+  state: string;
+  lat: number | null;
+  lng: number | null;
+  placeTypes: string[];
+  trustScore: number | null;
+  badges: string[];
+  reviewCount: number;
+  avgRating: number | null;
+  avgAccessRating: number | null;
+  accessReviewCount?: number;
+  petFriendlyYesCount?: number;
+  petFriendlyNoCount?: number;
+  petFriendlyReviewCount?: number;
+  petFriendly?: boolean | null;
+  isClaimed: boolean;
+  isVerified: boolean;
+  claimStatus?: "VERIFIED" | "PENDING_VERIFICATION" | "UNCLAIMED";
+  googleRating: number | null;
+  googleRatingCount: number | null;
+  source: "pawpass" | "google_only";
+  distanceMiles: number | null;
+  drivingDistanceMiles: number | null;
+  drivingDurationText: string | null;
+  subscriptionTier: string | null;
+}
+
 export interface BusinessDetail extends BusinessListing {
   description: string | null;
   website: string | null;
@@ -244,15 +368,28 @@ export interface BusinessDetail extends BusinessListing {
 
 export interface ParkListing {
   id: string;
+  googlePlaceId?: string | null;
   name: string;
   parkType: string;
+  formattedAddress?: string;
   city: string;
   state: string;
+  lat?: number | null;
+  lng?: number | null;
   amenities: string[];
   isVerified: boolean;
   badges: string[];
   reviewCount: number;
   avgRating: number | null;
+  googleRating?: number | null;
+  googleRatingCount?: number | null;
+  googleMapsUri?: string | null;
+  source?: "pawpass" | "google_only";
+  distanceMiles?: number | null;
+  drivingDistanceMiles?: number | null;
+  drivingDurationText?: string | null;
+  leashRule?: string | null;
+  rules?: Array<{ icon?: string; rule: string }>;
 }
 
 export interface ParkDetail extends ParkListing {
@@ -315,10 +452,14 @@ export interface UserProfile {
   id: string;
   name: string | null;
   email: string;
+  avatarUrl: string | null;
   role: string;
   isHandler: boolean;
-  stats: { reviews: number; complaints: number };
-  businesses: Array<{ businessId: string; name: string; role: string }>;
+  handlerVerified: boolean;
+  foundingMemberNumber: number | null;
+  onboardingCompletedAt: string | null;
+  stats: { reviews: number; complaints: number; incidentLogs: number };
+  businesses: Array<{ businessId: string; name: string; role: string; country: string }>;
 }
 
 export interface Notification {
@@ -340,7 +481,15 @@ export interface TrainingAssignment {
 }
 
 export interface EffectiveRules {
+  jurisdiction: {
+    country: string;
+    state: string | null;
+    county: string | null;
+    city: string | null;
+  };
   allowedQuestions: Array<{ id: string; question: string }>;
   prohibitedActions: Array<{ id: string; action: string; citation: string }>;
+  citations: Array<{ ref: string; label?: string; url?: string | null }>;
+  notes: string[];
   layers: string[];
 }

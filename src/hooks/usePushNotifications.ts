@@ -11,6 +11,8 @@ import Constants from "expo-constants";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: true,
   }),
@@ -70,8 +72,8 @@ export function usePushNotifications(): PushState {
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
     registerForPushNotifications()

@@ -1,11 +1,13 @@
 // app/(tabs)/learn.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View, ScrollView, TouchableOpacity, Text, StyleSheet,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, Alert, PawText, Divider } from "../../src/components/ui";
+import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
+import { JurisdictionRules } from "../../src/components/rights/jurisdiction-rules";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
 
 const TABS = ["FAQ", "Scripts", "Your Rights"] as const;
@@ -78,12 +80,18 @@ function FAQItem({ item }: { item: typeof FAQ[0] }) {
 
 export default function LearnScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>("FAQ");
+
+  useEffect(() => {
+    if (params.tab === "rights") setActiveTab("Your Rights");
+  }, [params.tab]);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <MobileTopBar active="rights" />
         <PawText variant="h2">Know Your Rights</PawText>
         <PawText variant="caption" color={Colors.dim} style={{ marginTop: 2 }}>
           ADA service animal education
@@ -108,7 +116,7 @@ export default function LearnScreen() {
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 80 }]}>
 
         <Alert variant="warn" title="Educational content only" style={{ marginBottom: Spacing[4] }}>
-          This information is educational and general in nature. It is not legal advice. For specific legal questions, consult a qualified attorney or your state's disability rights organization.
+          This information is educational and general in nature. It is not legal advice. For specific legal questions, consult a qualified attorney or your state’s disability rights organization.
         </Alert>
 
         {/* FAQ */}
@@ -142,6 +150,7 @@ export default function LearnScreen() {
         {/* Your Rights */}
         {activeTab === "Your Rights" && (
           <View style={{ gap: Spacing[3] }}>
+            <JurisdictionRules />
             {RIGHTS.map((r, i) => (
               <Card key={i}>
                 <View style={{ flexDirection: "row", gap: Spacing[3], alignItems: "flex-start" }}>
@@ -158,7 +167,12 @@ export default function LearnScreen() {
               <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22, marginBottom: Spacing[3] }}>
                 Document the incident immediately: date, time, location, what was said, who said it. Then:
               </PawText>
-              {["File a report on PawPass", "Contact the DOJ ADA Information Line: 1-800-514-0301", "Contact your state's disability rights organization", "Consult a disability rights attorney"].map((s, i) => (
+              {[
+                "Document your access concern on PawPass. Submit and securely store the details of what happened. Your report may affect the business's PawPass access rating, but submitting it does not begin legal action, mediation, or direct follow-up by PawPass.",
+                "Contact the DOJ ADA Information Line: 1-800-514-0301",
+                "Contact your state's disability rights organization",
+                "Consult a disability rights attorney",
+              ].map((s, i) => (
                 <View key={i} style={{ flexDirection: "row", gap: Spacing[2], marginBottom: 6 }}>
                   <Text style={{ color: Colors.danger, fontWeight: "700" }}>{i + 1}.</Text>
                   <PawText variant="body" color={Colors.muted}>{s}</PawText>

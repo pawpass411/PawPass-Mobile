@@ -7,11 +7,13 @@ import { StatusBar } from "expo-status-bar";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
+import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { Colors } from "../src/lib/theme";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
+import { configureApiAuth } from "../src/lib/api";
 
 // Keep splash visible while fonts/auth load
 SplashScreen.preventAutoHideAsync();
@@ -27,18 +29,21 @@ const tokenCache = {
 };
 
 const CLERK_KEY =
-  Constants.expoConfig?.extra?.clerkPublishableKey ??
   process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ??
+  Constants.expoConfig?.extra?.clerkPublishableKey ??
   "";
 
 const BASE_URL =
-  Constants.expoConfig?.extra?.apiBaseUrl ??
   process.env.EXPO_PUBLIC_API_BASE_URL ??
-  "https://pawpass.app";
+  Constants.expoConfig?.extra?.apiBaseUrl ??
+  "https://pawpass411.com";
 
 function RootLayoutInner() {
-  const { isLoaded } = useAuth();
+  const { isLoaded, getToken } = useAuth();
   const { expoPushToken } = usePushNotifications();
+
+  // Use Clerk's current, automatically refreshed session for every PawPass API request.
+  configureApiAuth(() => getToken());
 
   useEffect(() => {
     if (isLoaded) SplashScreen.hideAsync();
@@ -108,7 +113,7 @@ function RootLayoutInner() {
       />
       <Stack.Screen
         name="feedback"
-        options={{ title: "Send Feedback", presentation: "modal" }}
+        options={{ title: "Contact Us", presentation: "modal" }}
       />
       <Stack.Screen
         name="onboarding"
@@ -150,7 +155,33 @@ function RootLayoutInner() {
   );
 }
 
+function MissingClerkConfiguration() {
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StatusBar style="light" backgroundColor={Colors.bg}/>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: Colors.bg }}>
+          <Text style={{ color: Colors.text, fontSize: 24, fontWeight: "900", textAlign: "center", marginBottom: 12 }}>
+            PawPass mobile needs a Clerk key.
+          </Text>
+          <Text style={{ color: Colors.muted, fontSize: 15, lineHeight: 22, textAlign: "center" }}>
+            Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY to the mobile app environment, then restart Expo.
+          </Text>
+        </View>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
 export default function RootLayout() {
+  if (!CLERK_KEY) {
+    return <MissingClerkConfiguration/>;
+  }
+
   return (
     <ClerkProvider publishableKey={CLERK_KEY} tokenCache={tokenCache}>
       <GestureHandlerRootView style={{ flex: 1 }}>

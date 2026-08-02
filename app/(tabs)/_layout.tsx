@@ -1,21 +1,19 @@
-// app/(tabs)/_layout.tsx
-// Bottom tab navigation — Discover, Parks, Report, Profile
-
 import { Tabs } from "expo-router";
-import { View, Text, Platform } from "react-native";
+import { View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../../src/lib/theme";
 
-function TabIcon({ focused, emoji, label }: { focused: boolean; emoji: string; label: string }) {
+function TabIcon({
+  focused,
+  name,
+}: {
+  focused: boolean;
+  name: keyof typeof Ionicons.glyphMap;
+}) {
   return (
-    <View style={{ alignItems: "center", paddingTop: 4 }}>
-      <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
-      <Text style={{
-        fontSize: 10, marginTop: 2, fontWeight: focused ? "700" : "400",
-        color: focused ? Colors.accent : Colors.muted,
-      }}>
-        {label}
-      </Text>
+    <View style={{ alignItems: "center", justifyContent: "center", paddingTop: 4 }}>
+      <Ionicons name={name} size={24} color={focused ? Colors.accent : Colors.muted} />
     </View>
   );
 }
@@ -32,30 +30,40 @@ export default function TabLayout() {
           borderTopWidth: 1,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 8,
-          height: 60 + (insets.bottom > 0 ? insets.bottom : 8),
+          height: 62 + (insets.bottom > 0 ? insets.bottom : 8),
         },
-        tabBarShowLabel: false,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "700",
+        },
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.muted,
         headerStyle: { backgroundColor: Colors.surface },
         headerTintColor: Colors.accent,
-        headerTitleStyle: { color: Colors.text, fontWeight: "700" },
+        headerTitleStyle: { color: Colors.text, fontWeight: "800" },
         headerShadowVisible: false,
+        headerShown: false,
       }}
     >
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="home" />,
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{
           title: "Discover",
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="·" label="Discover"/>,
-          headerTitle: "PawPass",
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="search" />,
         }}
       />
       <Tabs.Screen
         name="parks"
         options={{
           title: "Parks",
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="·" label="Parks"/>,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="paw" />,
         }}
       />
       <Tabs.Screen
@@ -63,18 +71,25 @@ export default function TabLayout() {
         options={{
           title: "Report",
           tabBarIcon: ({ focused }) => (
-            <View style={{
-              width: 52, height: 52, borderRadius: 26,
-              backgroundColor: Colors.danger,
-              alignItems: "center", justifyContent: "center",
-              marginBottom: 20,
-              shadowColor: Colors.danger,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.4,
-              shadowRadius: 8,
-              elevation: 8,
-            }}>
-              <Text style={{ fontSize: 22 }}>+</Text>
+            <View
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                backgroundColor: Colors.info,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 20,
+                borderWidth: 2,
+                borderColor: focused ? Colors.accent : Colors.infoBorder,
+                shadowColor: Colors.info,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.28,
+                shadowRadius: 8,
+                elevation: 8,
+              }}
+            >
+              <Ionicons name="alert-circle" size={25} color={Colors.white} />
             </View>
           ),
           href: "/complaint/new",
@@ -84,14 +99,15 @@ export default function TabLayout() {
         name="learn"
         options={{
           title: "Learn",
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="·" label="Learn"/>,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="book" />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="·" label="Profile"/>,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="person-circle" />,
         }}
       />
     </Tabs>

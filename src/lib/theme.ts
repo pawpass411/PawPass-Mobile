@@ -9,6 +9,7 @@ export const Colors = {
   bg:        "#080F08",
   surface:   "#0D1F0D",
   surface2:  "#122012",
+  surface3:  "#102D1A",
 
   // Borders
   border:    "#1a3a1a",
@@ -17,6 +18,7 @@ export const Colors = {
   // Brand accent
   accent:    "#AAFF00",
   accentDim: "rgba(170,255,0,0.12)",
+  accentBorder: "rgba(170,255,0,0.35)",
 
   // Text
   text:      "#e0ffe0",
@@ -27,7 +29,9 @@ export const Colors = {
   // Semantic
   danger:    "#EF4444",
   warn:      "#FCD34D",
-  info:      "#22D3EE",
+  info:      "#5B80CC",
+  infoDim:   "rgba(91,128,204,0.18)",
+  infoBorder:"rgba(91,128,204,0.45)",
   purple:    "#A78BFA",
   orange:    "#FB923C",
   success:   "#AAFF00",

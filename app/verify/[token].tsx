@@ -48,7 +48,7 @@ export default function VerifyScreen() {
               <PawPassMark size={52}/>
               <PawText variant="label" color="rgba(170,255,0,0.45)" style={{ marginTop: Spacing[3], letterSpacing: 2 }}>CERTIFICATE OF COMPLETION</PawText>
               <PawText variant="h3" color={Colors.accent} style={{ marginTop: 4, letterSpacing: 4 }}>PAWPASS</PawText>
-              <PawText variant="micro" color="rgba(170,255,0,0.35)" style={{ letterSpacing: 2 }}>by Apawcalypse LLC</PawText>
+              <PawText variant="micro" color="rgba(170,255,0,0.35)" style={{ letterSpacing: 2 }}>by PawPass</PawText>
 
               <View style={styles.certDivider}/>
 
@@ -70,7 +70,7 @@ export default function VerifyScreen() {
 
           <Alert variant={isValid ? "success" : "danger"}>
             {isValid
-              ? "This certificate is valid. It was issued by PawPass / Apawcalypse LLC following completion of ADA service animal compliance training."
+              ? "This certificate is valid. It was issued by PawPass following completion of service animal access training."
               : cert?.isRevoked ? "This certificate has been revoked."
               : cert?.isExpired ? "This certificate has expired. Updated training may be required."
               : "Certificate not found. The link may be invalid or expired."}
@@ -78,7 +78,7 @@ export default function VerifyScreen() {
 
           <PawText variant="micro" color={Colors.ghost} style={{ textAlign: "center", marginTop: Spacing[4], lineHeight: 16 }}>
             PawPass certificates confirm educational training completion. They are not government certifications.
-            {"\n"}© {new Date().getFullYear()} Apawcalypse LLC
+            {"\n"}© {new Date().getFullYear()} Stodghill Consulting LLC
           </PawText>
         </>
       )}

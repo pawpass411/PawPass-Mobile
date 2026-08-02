@@ -9,7 +9,7 @@ import { Colors, Spacing, Radius } from "../src/lib/theme";
 
 function NotifCard({ n, onMarkRead }: { n: Notification; onMarkRead: (id: string) => void }) {
   const TYPE_ICONS: Record<string, string> = {
-    complaint: "", training: "", badge: "", system: "", info: "",
+    review: "✓", badge: "", system: "", info: "",
   };
   return (
     <TouchableOpacity
@@ -40,7 +40,12 @@ export default function NotificationsScreen() {
     if (isRefresh) setRefreshing(true);
     try {
       const data = await api.notifications.list();
-      setNotifications(data.notifications);
+      setNotifications(
+        data.notifications.filter(
+          notification =>
+            notification.type !== "complaint" && notification.type !== "training",
+        ),
+      );
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
   }, []);

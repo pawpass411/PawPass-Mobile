@@ -17,6 +17,8 @@ import { Colors, Spacing, Radius } from "../../src/lib/theme";
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
 
+const OAUTH_REDIRECT_URL = "clerk://com.stodghillconsulting.pawpass.callback";
+
 // ─── REVIEWER DEMO ACCOUNTS ───────────────────────────
 // These accounts are seeded in the DB and provided to Apple/Google reviewers
 // Add to App Store Connect → App Review Information → Demo Account
@@ -24,21 +26,21 @@ const DEMO_ACCOUNTS = [
   {
     label: "Handler Demo",
     description: "Service dog handler — full review and report access",
-    email: "demo-handler@pawpass.app",
+    email: "demo-handler@pawpass411.com",
     password: "PawPassDemo2025!",
     icon: "",
   },
   {
     label: "Business Demo",
     description: "Business owner — dashboard, training, complaint management",
-    email: "demo-business@pawpass.app",
+    email: "demo-business@pawpass411.com",
     password: "PawPassDemo2025!",
     icon: "",
   },
   {
     label: "Community Demo",
     description: "Community member — browsing and rating",
-    email: "demo-community@pawpass.app",
+    email: "demo-community@pawpass411.com",
     password: "PawPassDemo2025!",
     icon: "",
   },
@@ -58,6 +60,8 @@ export default function SignInScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [awaitingVerification, setAwaitingVerification] = useState(false);
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"google"|"apple"|null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +76,54 @@ export default function SignInScreen() {
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         router.replace("/(tabs)");
+        return;
       }
+
+      const resultStatus = result.status as string | null;
+      if (resultStatus === "needs_client_trust" || resultStatus === "needs_second_factor") {
+        const emailFactor = result.supportedSecondFactors?.find(
+          factor => factor.strategy === "email_code",
+        );
+
+        if (!emailFactor || !("emailAddressId" in emailFactor)) {
+          setError("This account requires a verification method that is not available in the app.");
+          return;
+        }
+
+        await result.prepareSecondFactor({
+          strategy: "email_code",
+          emailAddressId: emailFactor.emailAddressId,
+        });
+        setAwaitingVerification(true);
+        return;
+      }
+
+      setError("Sign-in needs another step. Please try again or use Google sign-in.");
     } catch (err: any) {
-      setError(err?.errors?.[0]?.message ?? "Sign in failed. Check your email and password.");
+      setError(err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? "Sign in failed. Check your email and password.");
     } finally { setLoading(false); }
+  };
+
+  const handleVerification = async () => {
+    if (!isLoaded || !verificationCode.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await signIn.attemptSecondFactor({
+        strategy: "email_code",
+        code: verificationCode.trim(),
+      });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.replace("/(tabs)");
+        return;
+      }
+      setError("That verification code was not accepted. Please try again.");
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? "Verification failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDemoLogin = async (account: typeof DEMO_ACCOUNTS[0]) => {
@@ -93,7 +141,7 @@ export default function SignInScreen() {
         router.replace("/(tabs)");
       }
     } catch {
-      setError(`Demo account unavailable. Contact support@pawpass.app.`);
+      setError("Demo account unavailable. Contact PawPass support.");
     } finally { setLoading(false); }
   };
 
@@ -102,13 +150,19 @@ export default function SignInScreen() {
     setError(null);
     try {
       const startFlow = provider === "google" ? startGoogleOAuth : startAppleOAuth;
-      const { createdSessionId, setActive: setOAuthActive } = await startFlow();
+      const { createdSessionId, setActive: setOAuthActive } = await startFlow({
+        redirectUrl: OAUTH_REDIRECT_URL,
+      });
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
         router.replace("/(tabs)");
       }
     } catch (err: any) {
-      setError(`${provider === "google" ? "Google" : "Apple"} sign-in failed.`);
+      setError(
+        err?.errors?.[0]?.longMessage ??
+        err?.errors?.[0]?.message ??
+        `${provider === "google" ? "Google" : "Apple"} sign-in failed.`,
+      );
     } finally { setOauthLoading(null); }
   };
 
@@ -162,24 +216,55 @@ export default function SignInScreen() {
 
         {/* Email/password */}
         {error && <Alert variant="danger" style={{ marginBottom: Spacing[3] }}>{error}</Alert>}
-        <Input
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <Input
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Your password"
-          secureTextEntry
-        />
-        <Button onPress={handleSignIn} loading={loading} fullWidth style={{ marginBottom: Spacing[4] }}>
-          Sign in
-        </Button>
+        {awaitingVerification ? (
+          <>
+            <Alert variant="info" style={{ marginBottom: Spacing[3] }}>
+              We emailed you a verification code because this is a new device.
+            </Alert>
+            <Input
+              label="Verification code"
+              value={verificationCode}
+              onChangeText={setVerificationCode}
+              placeholder="Enter the code from your email"
+              keyboardType="numeric"
+              autoCapitalize="none"
+            />
+            <Button onPress={handleVerification} loading={loading} fullWidth style={{ marginBottom: Spacing[4] }}>
+              Verify and sign in
+            </Button>
+            <TouchableOpacity
+              onPress={() => {
+                setAwaitingVerification(false);
+                setVerificationCode("");
+                setError(null);
+              }}
+              style={{ alignItems: "center", marginBottom: Spacing[4] }}
+            >
+              <PawText variant="caption" color={Colors.muted}>Use a different account</PawText>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Your password"
+              secureTextEntry
+            />
+            <Button onPress={handleSignIn} loading={loading} fullWidth style={{ marginBottom: Spacing[4] }}>
+              Sign in
+            </Button>
+          </>
+        )}
 
         <TouchableOpacity onPress={() => router.push("/(auth)/sign-up")} style={{ alignItems: "center", marginBottom: Spacing[6] }}>
           <PawText variant="caption" color={Colors.muted}>
@@ -232,7 +317,7 @@ export default function SignInScreen() {
         </View>
         <PawText variant="micro" color={Colors.ghost} style={{ textAlign: "center", marginTop: 8, lineHeight: 15 }}>
           Reviews are community experiences, not legal findings.{"\n"}
-          © {new Date().getFullYear()} Apawcalypse LLC
+          © {new Date().getFullYear()} Stodghill Consulting LLC
         </PawText>
       </ScrollView>
     </KeyboardAvoidingView>

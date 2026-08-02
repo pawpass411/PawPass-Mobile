@@ -7,6 +7,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, Badge, Alert, PawText, StarRating, Input, Button } from "../../src/components/ui";
+import { ReviewForm } from "../../src/components/reviews/review-form";
 import { api, ParkDetail } from "../../src/lib/api";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
 
@@ -29,11 +30,11 @@ const TABS = ["Overview", "Reviews", "Write Review"] as const;
 type Tab = typeof TABS[number];
 
 export default function ParkDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>();
   const insets = useSafeAreaInsets();
   const [park, setPark] = useState<ParkDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("Overview");
+  const [tab, setTab] = useState<Tab>(initialTab === "write" ? "Write Review" : "Overview");
   const [rating, setRating] = useState(0);
   const [accessRating, setAccessRating] = useState(0);
   const [reviewBody, setReviewBody] = useState("");
@@ -48,6 +49,10 @@ export default function ParkDetailScreen() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (initialTab === "write") setTab("Write Review");
+  }, [initialTab]);
 
   const submitReview = async () => {
     if (!rating || reviewBody.length < 20) return;
@@ -213,6 +218,9 @@ export default function ParkDetailScreen() {
 
           {/* WRITE REVIEW */}
           {tab === "Write Review" && (
+            <ReviewForm target={{ kind: "park", parkId: id, placeName: park.name }} />
+          )}
+          {false && tab === "Write Review" && (
             <Card>
               {submitted ? (
                 <View style={{ alignItems: "center", padding: Spacing[6] }}>

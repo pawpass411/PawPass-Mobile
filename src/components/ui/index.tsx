@@ -98,7 +98,7 @@ export function Button({
 
   const bgColor = {
     primary:   Colors.accent,
-    secondary: Colors.surface2,
+    secondary: Colors.info,
     ghost:     Colors.transparent,
     danger:    "#EF4444",
     outline:   Colors.transparent,
@@ -106,7 +106,7 @@ export function Button({
 
   const textColor = {
     primary:   "#0D1F0D",
-    secondary: Colors.text,
+    secondary: Colors.white,
     ghost:     Colors.accent,
     danger:    "#fff",
     outline:   Colors.accent,
@@ -125,7 +125,7 @@ export function Button({
         styles.button,
         { backgroundColor: bgColor, paddingVertical: paddingV },
         variant === "outline" && { borderWidth: 1, borderColor: Colors.accent },
-        variant === "secondary" && { borderWidth: 1, borderColor: Colors.border2 },
+        variant === "secondary" && { borderWidth: 1, borderColor: Colors.infoBorder },
         fullWidth && { width: "100%" },
         isDisabled && { opacity: 0.45 },
         style,
@@ -328,7 +328,7 @@ export function Skeleton({ width, height, style }: { width?: number|string; heig
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing[4],
     borderWidth: 1,
     borderColor: Colors.border,

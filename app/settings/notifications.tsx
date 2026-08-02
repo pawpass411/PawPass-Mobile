@@ -31,9 +31,8 @@ function SettingRow({
 
 export default function NotificationSettingsScreen() {
   const insets = useSafeAreaInsets();
-  const [reportUpdates, setReportUpdates] = useState(true);
+  const [reviewApprovals, setReviewApprovals] = useState(true);
   const [badgeChanges, setBadgeChanges] = useState(true);
-  const [trainingReminders, setTrainingReminders] = useState(true);
   const [communityDigest, setCommunityDigest] = useState(false);
   const [newReviews, setNewReviews] = useState(false);
 
@@ -42,13 +41,13 @@ export default function NotificationSettingsScreen() {
       style={{ flex: 1, backgroundColor: Colors.bg }}
       contentContainerStyle={{ padding: Spacing[4], paddingBottom: insets.bottom + 40 }}
     >
-      <PawText variant="caption" color={Colors.dim} style={{ marginBottom: Spacing[2] }}>REPORTS & COMPLAINTS</PawText>
+      <PawText variant="caption" color={Colors.dim} style={{ marginBottom: Spacing[2] }}>REVIEWS</PawText>
       <Card style={{ padding: 0, overflow: "hidden", marginBottom: Spacing[4] }}>
         <SettingRow
-          label="Report status updates"
-          description="When your access concern report changes status"
-          value={reportUpdates}
-          onChange={setReportUpdates}
+          label="Review approved"
+          description="When your review is approved and becomes public"
+          value={reviewApprovals}
+          onChange={setReviewApprovals}
         />
         <Divider style={{ marginLeft: Spacing[4] }} />
         <SettingRow
@@ -56,16 +55,6 @@ export default function NotificationSettingsScreen() {
           description="When a business you've reviewed earns or loses a badge"
           value={badgeChanges}
           onChange={setBadgeChanges}
-        />
-      </Card>
-
-      <PawText variant="caption" color={Colors.dim} style={{ marginBottom: Spacing[2] }}>TRAINING (BUSINESS ACCOUNTS)</PawText>
-      <Card style={{ padding: 0, overflow: "hidden", marginBottom: Spacing[4] }}>
-        <SettingRow
-          label="Training reminders"
-          description="Reminders to complete assigned compliance training"
-          value={trainingReminders}
-          onChange={setTrainingReminders}
         />
       </Card>
 

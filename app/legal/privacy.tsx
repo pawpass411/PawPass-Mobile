@@ -54,7 +54,7 @@ Legal requirements: We may disclose information when required by law or to prote
   },
   {
     title: "5. Data Retention",
-    body: `Account data is retained while your account is active. You may request deletion of your account and associated data at any time by contacting privacy@pawpass.app.
+    body: `Account data is retained while your account is active. You may request deletion of your account and associated data at any time by contacting PawPass support.
 
 Reviews and reports that are part of an active investigation or dispute resolution process may be retained for up to 24 months after resolution.
 
@@ -70,19 +70,19 @@ Aggregated, anonymized analytics data may be retained indefinitely.`,
 • Export your data in a portable format
 • Opt out of non-essential communications
 
-To exercise these rights, contact privacy@pawpass.app.`,
+To exercise these rights, contact PawPass support.`,
   },
   {
     title: "7. Children's Privacy",
-    body: `PawPass is not directed at children under 13. We do not knowingly collect personal information from children under 13. If we learn we have collected such information, we will delete it promptly. Contact privacy@pawpass.app if you believe we have inadvertently collected a child's information.`,
+    body: `PawPass is not directed at children under 13. We do not knowingly collect personal information from children under 13. If we learn we have collected such information, we will delete it promptly. Contact PawPass support if you believe we have inadvertently collected a child's information.`,
   },
   {
     title: "8. Security",
-    body: `We implement industry-standard security measures including encryption in transit (TLS), encrypted storage of sensitive data, and access controls. No system is completely secure. If you discover a security vulnerability, please contact security@pawpass.app.`,
+    body: `We implement industry-standard security measures including encryption in transit (TLS), encrypted storage of sensitive data, and access controls. No system is completely secure. If you discover a security vulnerability, please contact PawPass support.`,
   },
   {
     title: "9. Contact",
-    body: `For privacy questions or requests:\n\nApawcalypse LLC\nprivacy@pawpass.app\n\nThis policy is effective as of January 1, 2025 and was last updated January 1, 2025.`,
+    body: `For privacy questions or requests, use Contact Us in the PawPass app. Choose “Privacy - Request” so your message is routed correctly.\n\nPawPass is operated by Stodghill Consulting LLC.\n\nThis policy is effective as of June 15, 2026.`,
   },
 ];
 
@@ -95,11 +95,11 @@ export default function PrivacyPolicyScreen() {
     >
       <PawText variant="h1" style={{ marginBottom: 4 }}>Privacy Policy</PawText>
       <PawText variant="caption" color={Colors.dim} style={{ marginBottom: Spacing[6] }}>
-        Apawcalypse LLC · Effective January 1, 2025
+        Stodghill Consulting LLC - Effective June 15, 2026
       </PawText>
 
       <PawText variant="body" color={Colors.muted} style={{ marginBottom: Spacing[6], lineHeight: 22 }}>
-        PawPass is built on the belief that service dog handlers deserve to know what to expect before they arrive. This Privacy Policy explains how Apawcalypse LLC collects, uses, and protects your information when you use the PawPass app and website.
+        PawPass helps people find welcoming places, share real experiences, and explore with confidence. This Privacy Policy explains how Stodghill Consulting LLC collects, uses, and protects your information when you use the PawPass app and website.
       </PawText>
 
       {SECTIONS.map((section, i) => (

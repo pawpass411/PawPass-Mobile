@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Card, PawText, EmptyState, Badge } from "../../src/components/ui";
+import { Alert, Button, Card, PawText, EmptyState, Input, StarRating } from "../../src/components/ui";
 import { api, Review } from "../../src/lib/api";
 import { Colors, Spacing } from "../../src/lib/theme";
 
@@ -14,11 +14,47 @@ export default function MyReviewsScreen() {
   const [reviews, setReviews] = useState<(Review & { locationName?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editAccessRating, setEditAccessRating] = useState<number | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const beginEdit = (review: Review) => {
+    setEditingId(review.id);
+    setEditRating(review.overallRating);
+    setEditAccessRating(review.accessRating);
+    setEditBody(review.body);
+    setEditError("");
+  };
+
+  const saveEdit = async (review: Review) => {
+    if (editBody.trim().length < 10) {
+      setEditError("Please write at least 10 characters about your experience.");
+      return;
+    }
+    setSaving(true);
+    setEditError("");
+    try {
+      const data = await api.reviews.update(review.id, {
+        overallRating: editRating,
+        accessRating: review.accessRating == null ? null : editAccessRating,
+        body: editBody.trim(),
+      });
+      setReviews(current => current.map(item => item.id === review.id ? { ...item, ...data.review } : item));
+      setEditingId(null);
+    } catch (caught) {
+      setEditError(caught instanceof Error ? caught.message : "Could not update this review.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const load = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const data = await api.reviews.list();
+      const data = await api.reviews.list({ mine: true });
       setReviews((data.reviews as any[]) ?? []);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
@@ -82,6 +118,31 @@ export default function MyReviewsScreen() {
               <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22 }}>
                 {r.body}
               </PawText>
+              {editingId === r.id ? (
+                <View style={{ marginTop:Spacing[3], gap:Spacing[3] }}>
+                  <Alert variant="info">Edits return the review to PawPass admin approval before it appears publicly again.</Alert>
+                  {editError ? <Alert variant="danger">{editError}</Alert> : null}
+                  <View>
+                    <PawText variant="caption" color={Colors.muted}>Overall rating</PawText>
+                    <StarRating value={editRating} onChange={setEditRating}/>
+                  </View>
+                  {r.accessRating != null ? (
+                    <View>
+                      <PawText variant="caption" color={Colors.muted}>Service-animal access rating</PawText>
+                      <StarRating value={editAccessRating ?? r.accessRating} onChange={setEditAccessRating} color={Colors.info}/>
+                    </View>
+                  ) : null}
+                  <Input label="Your experience" value={editBody} onChangeText={setEditBody} multiline numberOfLines={6} hint={`${editBody.length}/1500`}/>
+                  <View style={{ flexDirection:"row", gap:Spacing[2] }}>
+                    <Button style={{ flex:1 }} variant="outline" onPress={() => setEditingId(null)}>Cancel</Button>
+                    <Button style={{ flex:1 }} loading={saving} onPress={() => saveEdit(r)}>Save update</Button>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ marginTop:Spacing[3] }}>
+                  <Button variant="outline" size="sm" onPress={() => beginEdit(r)}>Update review</Button>
+                </View>
+              )}
               {r.businessResponse && (
                 <View style={styles.responseBox}>
                   <PawText variant="label" color={Colors.accent} style={{ marginBottom: 4 }}>

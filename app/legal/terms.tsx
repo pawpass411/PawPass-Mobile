@@ -9,7 +9,7 @@ import { Colors, Spacing } from "../../src/lib/theme";
 const SECTIONS = [
   {
     title: "1. Acceptance of Terms",
-    body: `By downloading, installing, or using PawPass, you agree to these Terms of Service. If you do not agree, do not use PawPass. These terms constitute a binding agreement between you and Apawcalypse LLC.`,
+    body: `By downloading, installing, or using PawPass, you agree to these Terms of Service. If you do not agree, do not use PawPass. These terms constitute a binding agreement between you and Stodghill Consulting LLC.`,
   },
   {
     title: "2. Service Description",
@@ -37,7 +37,7 @@ Submitting knowingly false reports may result in account termination and may exp
   },
   {
     title: "5. Disclaimer of Warranties",
-    body: `PAWPASS IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. APAWCALYPSE LLC DOES NOT WARRANT THAT:
+    body: `PAWPASS IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. STODGHILL CONSULTING LLC DOES NOT WARRANT THAT:
 
 • Reviews or reports accurately reflect legal compliance or non-compliance
 • Business or park information is current or accurate
@@ -48,7 +48,7 @@ USER-GENERATED CONTENT ON PAWPASS REFLECTS INDIVIDUAL COMMUNITY EXPERIENCES, NOT
   },
   {
     title: "6. Limitation of Liability",
-    body: `TO THE MAXIMUM EXTENT PERMITTED BY LAW, APAWCALYPSE LLC SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF PAWPASS, INCLUDING BUT NOT LIMITED TO:
+    body: `TO THE MAXIMUM EXTENT PERMITTED BY LAW, STODGHILL CONSULTING LLC SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF PAWPASS, INCLUDING BUT NOT LIMITED TO:
 
 • Reliance on reviews or ratings
 • Business compliance with or violation of applicable law
@@ -65,7 +65,7 @@ PawPass Certified badges and certificates reflect completion of educational cont
   },
   {
     title: "8. Termination",
-    body: `We may suspend or terminate your access to PawPass at any time for violations of these terms, without prior notice. You may delete your account at any time through the app settings or by contacting support@pawpass.app.`,
+    body: `We may suspend or terminate your access to PawPass at any time for violations of these terms, without prior notice. You may delete your account at any time through the app settings or by contacting PawPass support.`,
   },
   {
     title: "9. Governing Law",
@@ -77,7 +77,7 @@ PawPass Certified badges and certificates reflect completion of educational cont
   },
   {
     title: "11. Contact",
-    body: `Questions about these terms:\n\nApawcalypse LLC\nlegal@pawpass.app\n\nEffective: January 1, 2025`,
+    body: `Questions about these terms can be sent through Contact Us in the PawPass app.\n\nPawPass is operated by Stodghill Consulting LLC.\n\nEffective: June 15, 2026`,
   },
 ];
 
@@ -90,7 +90,7 @@ export default function TermsScreen() {
     >
       <PawText variant="h1" style={{ marginBottom: 4 }}>Terms of Service</PawText>
       <PawText variant="caption" color={Colors.dim} style={{ marginBottom: Spacing[6] }}>
-        Apawcalypse LLC · Effective January 1, 2025
+        Stodghill Consulting LLC · Effective January 1, 2025
       </PawText>
 
       {SECTIONS.map((section, i) => (
