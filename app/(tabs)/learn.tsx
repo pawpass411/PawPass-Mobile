@@ -81,7 +81,7 @@ function FAQItem({ item }: { item: typeof FAQ[0] }) {
 export default function LearnScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tab?: string }>();
-  const [activeTab, setActiveTab] = useState<Tab>("FAQ");
+  const [activeTab, setActiveTab] = useState<Tab>("Your Rights");
 
   useEffect(() => {
     if (params.tab === "rights") setActiveTab("Your Rights");

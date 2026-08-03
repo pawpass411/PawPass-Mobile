@@ -2,6 +2,7 @@ node_modules/
 .expo/
 .expo-export-check/
 .expo-export-check-2/
+.expo-store-audit/
 dist/
 .env.local
 expo-err.log

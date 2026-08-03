@@ -92,15 +92,14 @@ export default function TabLayout() {
               <Ionicons name="alert-circle" size={25} color={Colors.white} />
             </View>
           ),
-          href: "/complaint/new",
+          href: null,
         }}
       />
       <Tabs.Screen
         name="learn"
         options={{
-          title: "Learn",
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="book" />,
-          href: null,
+          title: "Rights",
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="shield-checkmark" />,
         }}
       />
       <Tabs.Screen
