@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Input, Alert, Badge, Card, PawText } from "../../src/components/ui";
 import { api, ApiError } from "../../src/lib/api";
-import { Colors, Spacing, Radius, Typography } from "../../src/lib/theme";
+import { Colors, Spacing, Radius } from "../../src/lib/theme";
 import { useProtectedRoute } from "../../src/hooks/useProtectedRoute";
 
 const CATEGORIES = [
@@ -129,14 +129,14 @@ export default function ComplaintNewScreen() {
         <Text style={{ fontSize: 64, marginBottom: 16 }}></Text>
         <PawText variant="h2" style={{ textAlign: "center", marginBottom: 12 }}>Report received.</PawText>
         <PawText variant="body" color={Colors.muted} style={{ textAlign: "center", marginBottom: 32, lineHeight: 22 }}>
-          Your report has been submitted. A PawPass admin will review it before any badge action is taken. You'll be notified when the status changes.
+          Your report has been submitted. A PawPass admin will review it before any badge action is taken. You&apos;ll be notified when the status changes.
         </PawText>
         <View style={{ gap: Spacing[3], width: "100%" }}>
           {[
             "Reviewed by PawPass team (usually within 2 business days)",
             "Business is notified and given a chance to respond",
             "Corrective training assigned if warranted",
-            "You're updated when status changes",
+            "You’re updated when status changes",
           ].map((s, i) => (
             <View key={i} style={{ flexDirection: "row", gap: 12 }}>
               <Text style={{ color: Colors.accent, fontWeight: "700" }}>{i + 1}.</Text>
@@ -234,7 +234,6 @@ export default function ComplaintNewScreen() {
               { key: "wasEntryDenied",          label: "I was refused entry or asked to leave" },
               { key: "wasDocumentationAsked",    label: "Asked to see documentation, papers, or ID for my dog" },
               { key: "wasPoliceInvolved",        label: "Police, security, or another authority got involved" },
-              { key: "wantsMediation",           label: "I'd be open to a facilitated conversation with the business" },
               { key: "isPrivate",                label: "Keep this report private (visible to admins only)" },
             ].map(({ key, label }) => (
               <TouchableOpacity
@@ -312,7 +311,7 @@ export default function ComplaintNewScreen() {
               )}
             </Card>
             <Alert variant="warn" title="Before you submit">
-              By submitting, you're confirming this is a truthful account of your experience. This report is not a legal complaint — it's a community record reviewed by the PawPass team.
+              By submitting, you&apos;re confirming this is a truthful account of your experience. This report is not a legal complaint — it&apos;s a community record reviewed by the PawPass team.
             </Alert>
           </View>
         )}

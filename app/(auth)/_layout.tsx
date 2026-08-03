@@ -1,7 +1,6 @@
 // app/(auth)/_layout.tsx
-import { Stack } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
-import { Redirect } from "expo-router";
 import { Colors } from "../../src/lib/theme";
 
 export default function AuthLayout() {

@@ -6,7 +6,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Card, Badge, Alert, PawText, TrustScoreRing, StarRating, Input, Button, Divider } from "../../src/components/ui";
+import { Card, Badge, Alert, PawText, TrustScoreRing, StarRating, Input, Button } from "../../src/components/ui";
 import { ReviewForm } from "../../src/components/reviews/review-form";
 import { api, BusinessDetail } from "../../src/lib/api";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
@@ -71,7 +71,6 @@ export default function BusinessDetailScreen() {
     );
   }
 
-  const scoreColor = biz.trustScore == null ? Colors.dim : biz.trustScore >= 80 ? Colors.accent : biz.trustScore >= 50 ? Colors.warn : Colors.danger;
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>

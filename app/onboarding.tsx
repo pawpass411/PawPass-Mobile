@@ -42,7 +42,7 @@ export default function OnboardingScreen() {
             <PawText variant="body" color={Colors.muted} style={{ textAlign: "center", lineHeight: 22, marginBottom: Spacing[8] }}>
               Find welcoming places, share real experiences, and explore with confidence through PawPass community reviews.
             </PawText>
-            <Button onPress={() => setStep(2)} fullWidth>Let's go</Button>
+            <Button onPress={() => setStep(2)} fullWidth>Let&apos;s go</Button>
           </View>
         )}
 
@@ -56,12 +56,12 @@ export default function OnboardingScreen() {
               {[
                 {
                   val: true,
-                  label: "I'm a service dog handler",
+                  label: "I’m a service dog handler",
                   desc: "I use a trained service animal and want to review service dog access experiences.",
                 },
                 {
                   val: false,
-                  label: "I'm a dog owner",
+                  label: "I’m a dog owner",
                   desc: "I want to find dog-friendly places and share pet dog experience feedback.",
                 },
               ].map(o => (
@@ -79,7 +79,7 @@ export default function OnboardingScreen() {
           <View>
             <PawText variant="h2" style={{ marginBottom: Spacing[5] }}>A few things to know.</PawText>
             <Alert variant="info" title="Reviews are community experiences" style={{ marginBottom: Spacing[3] }}>
-              Ratings and reports on PawPass reflect individual users' experiences. They are not official ADA determinations, legal findings, or enforcement actions.
+              Ratings and reports on PawPass reflect individual users&apos; experiences. They are not official ADA determinations, legal findings, or enforcement actions.
             </Alert>
             <Alert variant="warn" title="Not legal advice" style={{ marginBottom: Spacing[5] }}>
               PawPass content is educational. It is not legal advice or a legal determination.
@@ -93,7 +93,7 @@ export default function OnboardingScreen() {
               </PawText>
             </TouchableOpacity>
             <Button onPress={finish} loading={saving} disabled={!agreed} fullWidth style={{ marginTop: Spacing[5] }}>
-              I understand - let's go
+              I understand - let&apos;s go
             </Button>
           </View>
         )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
@@ -6,12 +6,10 @@ import { useAuth } from "@clerk/clerk-expo";
 export default function Index() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoaded) return;
     router.replace("/(tabs)/home");
-    setLoading(false);
   }, [isLoaded, isSignedIn, router]);
 
   return (

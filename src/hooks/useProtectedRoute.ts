@@ -19,7 +19,7 @@ export function useProtectedRoute() {
     } else if (isSignedIn && inAuthGroup) {
       router.replace("/(tabs)");
     }
-  }, [isLoaded, isSignedIn, segments]);
+  }, [isLoaded, isSignedIn, segments, router]);
 
   return { isLoaded, isSignedIn };
 }

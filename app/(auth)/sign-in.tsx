@@ -268,7 +268,7 @@ export default function SignInScreen() {
 
         <TouchableOpacity onPress={() => router.push("/(auth)/sign-up")} style={{ alignItems: "center", marginBottom: Spacing[6] }}>
           <PawText variant="caption" color={Colors.muted}>
-            Don't have an account? <Text style={{ color: Colors.accent, fontWeight: "700" }}>Sign up</Text>
+            Don&apos;t have an account? <Text style={{ color: Colors.accent, fontWeight: "700" }}>Sign up</Text>
           </PawText>
         </TouchableOpacity>
 

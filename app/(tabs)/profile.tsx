@@ -8,7 +8,7 @@ import {
 import { router } from "expo-router";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Card, Badge, Button, PawText, Divider } from "../../src/components/ui";
+import { Badge, Button, PawText, Divider } from "../../src/components/ui";
 import { PawPassMark } from "../../src/components/ui/Logo";
 import { api, UserProfile } from "../../src/lib/api";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";

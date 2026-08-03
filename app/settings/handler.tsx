@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { View, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Card, Alert, PawText, Button } from "../../src/components/ui";
+import { Alert, PawText, Button } from "../../src/components/ui";
 import { api } from "../../src/lib/api";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
 

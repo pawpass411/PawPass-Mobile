@@ -272,7 +272,7 @@ export default function ParksScreen() {
       } else if (!nextCoords && mode === "nearby") {
         setNotice("Location is off. Search by park name, city, or ZIP, or allow location to find parks near you.");
       }
-    } catch (error) {
+    } catch {
       setParks([]);
       setTotal(0);
       setNotice("PawPass could not load parks right now. Try again, or search by city or ZIP.");

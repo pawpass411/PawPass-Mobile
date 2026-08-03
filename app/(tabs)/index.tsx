@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Linking,
   RefreshControl,
@@ -13,7 +12,7 @@ import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Alert, Badge, Button, Card, EmptyState, PawText, Skeleton } from "../../src/components/ui";
-import { PawPassMark, PawPassWordmark } from "../../src/components/ui/Logo";
+import { PawPassMark } from "../../src/components/ui/Logo";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { api, UnifiedListing } from "../../src/lib/api";
 import { Colors, Radius, Spacing, Typography } from "../../src/lib/theme";
@@ -271,14 +270,13 @@ export default function DiscoverScreen() {
 
   useEffect(() => {
     requestLocation().then((nextCoords) => {
-      if (nextCoords) loadNearby(nextCoords);
-      else setLoading(false);
+      if (!nextCoords) setLoading(false);
     });
-  }, []);
+  }, [requestLocation]);
 
   useEffect(() => {
     if (coords) loadNearby(coords);
-  }, [radiusMiles, type]);
+  }, [coords, loadNearby, radiusMiles, type]);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>

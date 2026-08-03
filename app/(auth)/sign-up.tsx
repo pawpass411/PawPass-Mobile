@@ -10,7 +10,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Input, Alert, PawText } from "../../src/components/ui";
 import { PawPassWordmark } from "../../src/components/ui/Logo";
-import { Colors, Spacing, Radius } from "../../src/lib/theme";
+import { Colors, Spacing } from "../../src/lib/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 

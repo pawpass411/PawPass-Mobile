@@ -5,7 +5,7 @@
 import React from "react";
 import {
   View, Text, TouchableOpacity, TextInput, ActivityIndicator,
-  StyleSheet, ViewStyle, TextStyle, Platform, Pressable,
+  StyleSheet, ViewStyle, TextStyle, Pressable,
 } from "react-native";
 import { Colors, Typography, Spacing, Radius, Shadow, HitSlop } from "../../lib/theme";
 

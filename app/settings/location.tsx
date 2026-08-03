@@ -1,6 +1,6 @@
 // app/settings/location.tsx
 import { useState } from "react";
-import { View, ScrollView, Switch, TouchableOpacity, Linking, StyleSheet } from "react-native";
+import { View, ScrollView, Switch, Linking, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, Alert, PawText, Button, Divider } from "../../src/components/ui";
 import { Colors, Spacing } from "../../src/lib/theme";

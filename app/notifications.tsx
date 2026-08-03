@@ -3,9 +3,9 @@ import { useState, useEffect, useCallback } from "react";
 import { View, FlatList, TouchableOpacity, Text, StyleSheet, RefreshControl } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PawText, Card, Button, EmptyState } from "../src/components/ui";
+import { PawText, EmptyState } from "../src/components/ui";
 import { api, Notification } from "../src/lib/api";
-import { Colors, Spacing, Radius } from "../src/lib/theme";
+import { Colors, Spacing } from "../src/lib/theme";
 
 function NotifCard({ n, onMarkRead }: { n: Notification; onMarkRead: (id: string) => void }) {
   const TYPE_ICONS: Record<string, string> = {

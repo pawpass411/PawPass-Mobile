@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { View, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Card, Alert, Badge, PawText } from "../../src/components/ui";
+import { Card, Alert, PawText } from "../../src/components/ui";
 import { PawPassMark } from "../../src/components/ui/Logo";
 import { api } from "../../src/lib/api";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";

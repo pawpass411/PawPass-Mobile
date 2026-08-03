@@ -151,6 +151,7 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
   const [error, setError] = useState("");
   const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
+  const targetId = target.kind === "business" ? target.businessLocationId : target.parkId;
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -161,12 +162,12 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
     if (!isLoaded || !isSignedIn) return;
     setCheckingExisting(true);
     api.reviews.list(target.kind === "business"
-      ? { mine:true, locationId:target.businessLocationId }
-      : { mine:true, parkId:target.parkId })
+      ? { mine:true, locationId:targetId }
+      : { mine:true, parkId:targetId })
       .then(data => setExistingReviewId(data.reviews[0]?.id ?? null))
       .catch(() => setExistingReviewId(null))
       .finally(() => setCheckingExisting(false));
-  }, [isLoaded, isSignedIn, target.kind, target.kind === "business" ? target.businessLocationId : target.parkId]);
+  }, [isLoaded, isSignedIn, target.kind, targetId]);
 
   const isHandlerReview = profile?.role === "HANDLER" || profile?.role === "TRAINER" || profile?.isHandler;
   const isBusinessAccount = profile?.role === "BUSINESS";

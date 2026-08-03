@@ -389,7 +389,7 @@ export interface ParkListing {
   drivingDistanceMiles?: number | null;
   drivingDurationText?: string | null;
   leashRule?: string | null;
-  rules?: Array<{ icon?: string; rule: string }>;
+  rules?: { icon?: string; rule: string }[];
 }
 
 export interface ParkDetail extends ParkListing {
@@ -435,7 +435,7 @@ export interface ComplaintSummary {
 
 export interface ComplaintDetail extends ComplaintSummary {
   whatUserExperienced: string;
-  statusHistory: Array<{ status: string; note: string | null; changedAt: string }>;
+  statusHistory: { status: string; note: string | null; changedAt: string }[];
   businessResponse?: { body: string } | null;
 }
 
@@ -459,7 +459,7 @@ export interface UserProfile {
   foundingMemberNumber: number | null;
   onboardingCompletedAt: string | null;
   stats: { reviews: number; complaints: number; incidentLogs: number };
-  businesses: Array<{ businessId: string; name: string; role: string; country: string }>;
+  businesses: { businessId: string; name: string; role: string; country: string }[];
 }
 
 export interface Notification {
@@ -476,8 +476,8 @@ export interface TrainingAssignment {
   id: string;
   status: string;
   courseId: string;
-  course: { id: string; title: string; modules: Array<{ id: string; title: string; orderIndex: number }> };
-  moduleAttempts: Array<{ moduleId: string; completedAt: string | null }>;
+  course: { id: string; title: string; modules: { id: string; title: string; orderIndex: number }[] };
+  moduleAttempts: { moduleId: string; completedAt: string | null }[];
 }
 
 export interface EffectiveRules {
@@ -487,9 +487,9 @@ export interface EffectiveRules {
     county: string | null;
     city: string | null;
   };
-  allowedQuestions: Array<{ id: string; question: string }>;
-  prohibitedActions: Array<{ id: string; action: string; citation: string }>;
-  citations: Array<{ ref: string; label?: string; url?: string | null }>;
+  allowedQuestions: { id: string; question: string }[];
+  prohibitedActions: { id: string; action: string; citation: string }[];
+  citations: { ref: string; label?: string; url?: string | null }[];
   notes: string[];
   layers: string[];
 }
