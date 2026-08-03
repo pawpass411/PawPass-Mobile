@@ -8,13 +8,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Alert, Badge, Button, Card, EmptyState, PawText, Skeleton } from "../../src/components/ui";
 import { PawPassMark } from "../../src/components/ui/Logo";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { api, UnifiedListing } from "../../src/lib/api";
+import { getUsableLocation } from "../../src/lib/location";
 import { Colors, Radius, Spacing, Typography } from "../../src/lib/theme";
 
 const MILE_OPTIONS = [10, 25, 50, 100, 250];
@@ -193,15 +193,18 @@ export default function DiscoverScreen() {
   }, [results]);
 
   const requestLocation = useCallback(async () => {
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (permission.status !== "granted") {
-      setMessage("Location is off. Search by city, ZIP, or place name to browse PawPass listings.");
+    try {
+      const next = await getUsableLocation();
+      if (!next) {
+        setMessage("Location is off. Search by city, ZIP, or place name to browse PawPass listings.");
+        return null;
+      }
+      setCoords(next);
+      return next;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Location was unavailable. Search by city or ZIP.");
       return null;
     }
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    const next = { lat: position.coords.latitude, lng: position.coords.longitude };
-    setCoords(next);
-    return next;
   }, []);
 
   const loadNearby = useCallback(async (nextCoords = coords, isRefresh = false) => {

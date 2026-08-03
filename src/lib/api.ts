@@ -21,26 +21,41 @@ export function configureApiAuth(getToken: AuthTokenGetter) {
 // ─── REQUEST HELPER ──────────────────────────────────
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  requestOptions: { auth?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
-  const clerkToken = authTokenGetter
+  const shouldAuthenticate = requestOptions.auth !== false;
+  const clerkToken = shouldAuthenticate && authTokenGetter
     ? await authTokenGetter().catch(() => null)
     : null;
-  const legacyToken = clerkToken
+  const legacyToken = !shouldAuthenticate || clerkToken
     ? null
     : await SecureStore.getItemAsync("session_token").catch(() => null);
   const token = clerkToken ?? legacyToken;
 
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    ...options,
-    headers: {
-      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestOptions.timeoutMs ?? 20_000);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/api${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...(!isFormData ? { "Content-Type": "application/json" } : {}),
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers ?? {}),
+      },
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new ApiError(0, "PawPass took too long to respond. Check your connection and try again.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -86,7 +101,7 @@ export const api = {
       p.set("lng", String(params.lng));
       if (params.radius) p.set("radius", String(params.radius));
       if (params.type) p.set("type", params.type);
-      return request<{ results: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/nearby?${p}`);
+      return request<{ results: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/nearby?${p}`, {}, { auth: false });
     },
 
     search: (params: { query: string; type?: string; lat?: number; lng?: number }) => {
@@ -95,7 +110,7 @@ export const api = {
       if (params.type) p.set("type", params.type);
       if (params.lat != null) p.set("lat", String(params.lat));
       if (params.lng != null) p.set("lng", String(params.lng));
-      return request<{ results: UnifiedListing[]; featured?: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/search?${p}`);
+      return request<{ results: UnifiedListing[]; featured?: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/search?${p}`, {}, { auth: false });
     },
   },
 
@@ -148,11 +163,11 @@ export const api = {
       if (params?.lng != null) p.set("lng", String(params.lng));
       if (params?.radius) p.set("radius", String(params.radius));
       if (params?.page)  p.set("page", String(params.page));
-      return request<{ results: ParkListing[]; total: number; pages: number }>(`/parks?${p}`);
+      return request<{ results: ParkListing[]; total: number; pages: number }>(`/parks?${p}`, {}, { auth: false });
     },
 
     get: (id: string) =>
-      request<{ park: ParkDetail }>(`/parks/${id}`),
+      request<{ park: ParkDetail }>(`/parks/${id}`, {}, { auth: false }),
   },
 
   reviews: {

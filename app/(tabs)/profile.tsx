@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  View, ScrollView, TouchableOpacity, Text, StyleSheet, Alert, Linking, Image,
+  ActivityIndicator, View, ScrollView, TouchableOpacity, Text, StyleSheet, Alert, Linking, Image,
 } from "react-native";
 import { router } from "expo-router";
 import { useAuth, useUser } from "@clerk/clerk-expo";
@@ -81,7 +81,16 @@ export default function ProfileScreen() {
     "Your Account";
   const email = profile?.email ?? clerkUser?.primaryEmailAddress?.emailAddress ?? "";
 
-  if (isLoaded && !isSignedIn) {
+  if (!isLoaded) {
+    return (
+      <View style={styles.accountLoading}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+        <PawText variant="body" color={Colors.muted}>Checking your PawPass account...</PawText>
+      </View>
+    );
+  }
+
+  if (!isSignedIn) {
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: Colors.bg }}
@@ -297,5 +306,13 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: Radius.md,
     backgroundColor: Colors.accent,
+  },
+  accountLoading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing[3],
+    padding: Spacing[6],
+    backgroundColor: Colors.bg,
   },
 });

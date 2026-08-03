@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Alert, Badge, Button, Card, EmptyState, PawText, Skeleton } from "../../src/components/ui";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { api, ParkListing } from "../../src/lib/api";
+import { getUsableLocation, withTimeout } from "../../src/lib/location";
 import { sortAndFilterParks } from "../../src/lib/park-listing";
 import { Colors, Radius, Spacing, Typography } from "../../src/lib/theme";
 
@@ -218,10 +219,8 @@ export default function ParksScreen() {
     try {
       let nextCoords = coords;
       if (!nextCoords) {
-        const permission = await Location.requestForegroundPermissionsAsync();
-        if (permission.status === "granted") {
-          const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          nextCoords = { lat: current.coords.latitude, lng: current.coords.longitude };
+        nextCoords = await getUsableLocation();
+        if (nextCoords) {
           setCoords(nextCoords);
         }
       }
@@ -233,10 +232,10 @@ export default function ParksScreen() {
       let stateQuery: string | undefined;
 
       if (!regionalQuery && nextCoords && (effectiveType === "STATE_PARK" || effectiveType === "NATIONAL_PARK")) {
-        const [address] = await Location.reverseGeocodeAsync({
+        const [address] = await withTimeout(Location.reverseGeocodeAsync({
           latitude: nextCoords.lat,
           longitude: nextCoords.lng,
-        });
+        }), 8_000, "Location lookup took too long.");
         if (effectiveType === "STATE_PARK") {
           stateQuery = address?.region || undefined;
           regionalQuery = stateQuery ?? "";
