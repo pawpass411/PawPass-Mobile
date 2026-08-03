@@ -15,8 +15,9 @@ import { Colors } from "../src/lib/theme";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { configureApiAuth } from "../src/lib/api";
 
-// Keep splash visible while fonts/auth load
-SplashScreen.preventAutoHideAsync();
+// Keep the native splash visible only until React mounts. Authentication may
+// continue loading in the background and must never trap users on the logo.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Clerk secure token cache
 const tokenCache = {
@@ -39,15 +40,17 @@ const BASE_URL =
   "https://pawpass411.com";
 
 function RootLayoutInner() {
-  const { isLoaded, getToken } = useAuth();
+  const { getToken } = useAuth();
   const { expoPushToken } = usePushNotifications();
 
   // Use Clerk's current, automatically refreshed session for every PawPass API request.
-  configureApiAuth(() => getToken());
+  useEffect(() => {
+    configureApiAuth(() => getToken());
+  }, [getToken]);
 
   useEffect(() => {
-    if (isLoaded) SplashScreen.hideAsync();
-  }, [isLoaded]);
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   // Register push token with backend when available
   useEffect(() => {
