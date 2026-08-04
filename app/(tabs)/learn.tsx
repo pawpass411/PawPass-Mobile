@@ -106,11 +106,29 @@ export default function LearnScreen() {
 
   if (profileReady && !hasFullRights) return (
     <View style={{flex:1,backgroundColor:Colors.bg}}>
-      <View style={[styles.header,{paddingTop:insets.top+8}]}><MobileTopBar active="rights"/><PawText variant="h2">Dog & Location Guidance</PawText><PawText variant="caption" color={Colors.dim}>Practical rules for everyday outings</PawText></View>
+      <View style={[styles.header,{paddingTop:insets.top+8}]}><MobileTopBar active="rights"/><PawText variant="h2">Park & Dog Guidance</PawText><PawText variant="caption" color={Colors.dim}>Public information for everyday outings</PawText></View>
       <ScrollView contentContainerStyle={[styles.scroll,{paddingBottom:insets.bottom+80,gap:Spacing[3]}]}>
         <Alert variant="info" title="Rules depend on the location">Pet-dog access, leash requirements, and park rules can vary by property, city, county, and state. PawPass only presents a local rule when its source has been verified.</Alert>
         <Card><PawText variant="h3">Check the specific place</PawText><PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>Use a PawPass park or business profile for posted leash rules, dog-friendly access, amenities, hours, and community experiences. Always follow posted signs.</PawText></Card>
-        <Card><PawText variant="h3">Service dogs are different</PawText><PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>Pet-dog permission does not determine service-dog access. Service-dog handlers and trainers receive the complete jurisdiction rights view.</PawText></Card>
+        {!isSignedIn ? (
+          <Card style={styles.rightsAccessCard}>
+            <PawText variant="h3">Unlock service-dog rights</PawText>
+            <PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>
+              Create a free account and choose Service Dog Handler, Service Dog Trainer, or both to access available federal, state, provincial, and local service-dog guidance.
+            </PawText>
+            <Alert variant="info" title="Why PawPass asks" style={{marginTop:Spacing[3]}}>
+              Your account type keeps service-dog rights and handler-level review tools separate from general dog-owner features.
+            </Alert>
+            <TouchableOpacity onPress={() => router.push("/(auth)/sign-up")} style={[styles.communityButton,{marginTop:Spacing[3]}]}>
+              <PawText variant="body" weight="bold" color={Colors.bg}>Create a free account</PawText>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/(auth)/sign-in")} style={[styles.communityButton,styles.signInButton]}>
+              <PawText variant="body" weight="bold" color={Colors.info}>Sign in</PawText>
+            </TouchableOpacity>
+          </Card>
+        ) : (
+          <Card><PawText variant="h3">Service dogs are different</PawText><PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>Pet-dog permission does not determine service-dog access. The complete jurisdiction rights view is reserved for Service Dog Handler and Service Dog Trainer accounts.</PawText></Card>
+        )}
         <TouchableOpacity onPress={() => router.push("/(tabs)/parks")} style={styles.communityButton}><PawText variant="body" weight="bold" color={Colors.bg}>Browse parks</PawText></TouchableOpacity>
         <TouchableOpacity onPress={() => router.push("/(tabs)/discover")} style={[styles.communityButton,{backgroundColor:Colors.info}]}><PawText variant="body" weight="bold" color={Colors.bg}>Find dog-friendly places</PawText></TouchableOpacity>
       </ScrollView>
@@ -224,6 +242,8 @@ export default function LearnScreen() {
 
 const styles = StyleSheet.create({
   communityButton:{minHeight:50,borderRadius:Radius.md,backgroundColor:Colors.accent,alignItems:"center",justifyContent:"center",paddingHorizontal:Spacing[4]},
+  rightsAccessCard:{borderColor:Colors.info,borderWidth:1},
+  signInButton:{marginTop:Spacing[2],backgroundColor:Colors.transparent,borderWidth:1,borderColor:Colors.info},
   header: {
     paddingHorizontal: Spacing[4], paddingBottom: Spacing[3],
     backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border,

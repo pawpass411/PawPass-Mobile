@@ -12,7 +12,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { Colors } from "../src/lib/theme";
-import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { configureApiAuth } from "../src/lib/api";
 import { ReviewOutboxSync } from "../src/components/reviews/review-outbox-sync";
 
@@ -35,14 +34,8 @@ const CLERK_KEY =
   Constants.expoConfig?.extra?.clerkPublishableKey ??
   "";
 
-const BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ??
-  Constants.expoConfig?.extra?.apiBaseUrl ??
-  "https://pawpass411.com";
-
 function RootLayoutInner() {
   const { getToken } = useAuth();
-  const { expoPushToken } = usePushNotifications();
 
   // Use Clerk's current, automatically refreshed session for every PawPass API request.
   useEffect(() => {
@@ -52,16 +45,6 @@ function RootLayoutInner() {
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
-
-  // Register push token with backend when available
-  useEffect(() => {
-    if (!expoPushToken) return;
-    fetch(`${BASE_URL}/api/users/me`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ expoPushToken }),
-    }).catch(() => {}); // non-critical — fail silently
-  }, [expoPushToken]);
 
   return (
     <>
@@ -78,6 +61,7 @@ function RootLayoutInner() {
     >
       {/* Auth screens — no header */}
       <Stack.Screen name="(auth)" options={{ headerShown: false }}/>
+      <Stack.Screen name="oauth-native-callback" options={{ headerShown: false, animation: "none" }}/>
 
       {/* Main tab navigation */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }}/>
@@ -146,16 +130,12 @@ function RootLayoutInner() {
         options={{ title: "My Reports" }}
       />
       <Stack.Screen
-        name="settings/notifications"
-        options={{ title: "Notification Settings" }}
-      />
-      <Stack.Screen
         name="settings/location"
         options={{ title: "Location Settings" }}
       />
       <Stack.Screen
         name="settings/handler"
-        options={{ title: "Handler Status" }}
+        options={{ title: "Account Type" }}
       />
     </Stack>
     </>

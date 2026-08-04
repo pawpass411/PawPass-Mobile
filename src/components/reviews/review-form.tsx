@@ -139,6 +139,7 @@ function PhotoGroup({
 export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSubmitted?: () => void }) {
   const { isLoaded, isSignedIn, userId } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
   const [dogFriendly, setDogFriendly] = useState<boolean | null>(null);
   const [accessRating, setAccessRating] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
@@ -158,7 +159,13 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
   const targetId = target.kind === "business" ? target.businessLocationId : target.parkId;
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !userId) return;
+    if (!isLoaded) return;
+    if (!isSignedIn || !userId) {
+      setProfile(null);
+      setProfileReady(true);
+      return;
+    }
+    setProfileReady(false);
     const cacheKey = `pawpass:review-profile:${userId}`;
     AsyncStorage.getItem(cacheKey)
       .then(value => { if (value) setProfile(JSON.parse(value) as UserProfile); })
@@ -166,7 +173,7 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
     api.users.me().then(data => {
       setProfile(data.user);
       AsyncStorage.setItem(cacheKey, JSON.stringify(data.user)).catch(() => {});
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setProfileReady(true));
   }, [isLoaded, isSignedIn, userId]);
 
   useEffect(() => {
@@ -307,13 +314,24 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
     }
   };
 
-  if (!isLoaded) return <PawText variant="body" color={Colors.muted}>Loading your review profile...</PawText>;
+  if (!isLoaded || (isSignedIn && !profileReady)) return <PawText variant="body" color={Colors.muted}>Loading your review profile...</PawText>;
   if (!isSignedIn) {
     return (
       <Card style={{ gap: Spacing[3] }}>
         <PawText variant="h3">Sign in to review</PawText>
         <PawText variant="body" color={Colors.muted}>Your PawPass role determines which existing review questions you receive.</PawText>
         <Button onPress={() => router.push("/(auth)/sign-in")} fullWidth>Sign In</Button>
+      </Card>
+    );
+  }
+  if (!profile?.onboardingCompletedAt) {
+    return (
+      <Card style={{ gap: Spacing[3] }}>
+        <PawText variant="h3">Choose your PawPass account type</PawText>
+        <PawText variant="body" color={Colors.muted}>
+          Before reviewing, tell us whether you are a Dog Owner, Service Dog Handler, Service Dog Trainer, or both a Handler and Trainer. This determines the review questions you receive.
+        </PawText>
+        <Button onPress={() => router.push("/onboarding")} fullWidth>Choose my account type</Button>
       </Card>
     );
   }
@@ -344,7 +362,7 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
         {target.kind === "park"
           ? "Park reviews use the same practical questions for dog owners, handlers, and trainers."
           : isHandlerReview
-            ? `You are reviewing as a ${profile?.role === "TRAINER" ? "service-dog trainer" : "service-dog handler"}.`
+            ? `You are reviewing as a ${profile?.role === "TRAINER" && profile?.isHandler ? "service-dog handler and trainer" : profile?.role === "TRAINER" ? "service-dog trainer" : "service-dog handler"}.`
             : "You are reviewing from a dog-owner perspective."}
       </Alert>
       {error ? <Alert variant="danger">{error}</Alert> : null}

@@ -205,15 +205,15 @@ export default function ProfileScreen() {
       {/* Settings */}
       <SectionHeader label="SETTINGS"/>
       <View style={styles.menuSection}>
-        <MenuRow icon="" label="Notifications" onPress={() => router.push("/settings/notifications")}/>
+        <MenuRow icon="" label="PawPass Notices" onPress={() => router.push("/notifications")}/>
         <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
         <MenuRow icon="" label="Location" onPress={() => router.push("/settings/location")}/>
         <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
         <MenuRow
           icon=""
-          label="Handler Status"
+          label="Account Type"
           onPress={() => router.push("/settings/handler")}
-          value={profile?.isHandler ? "Handler" : "Community"}
+          value={profile?.role === "TRAINER" && profile?.isHandler ? "Handler & Trainer" : profile?.role === "TRAINER" ? "Trainer" : profile?.isHandler ? "Handler" : "Dog Owner"}
         />
       </View>
 

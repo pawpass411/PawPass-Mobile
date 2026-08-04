@@ -37,6 +37,8 @@ const RADIUS_OPTIONS = [
   { label: "250 mi", meters: 402336 },
 ];
 
+type SearchScope = "nearby" | "regional";
+
 function formatDistance(park: ParkListing) {
   if (park.drivingDurationText && park.drivingDistanceMiles != null) {
     return `${park.drivingDurationText} drive - ${park.drivingDistanceMiles.toFixed(1)} mi`;
@@ -193,6 +195,7 @@ export default function ParksScreen() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [radius, setRadius] = useState(160934);
+  const [searchScope, setSearchScope] = useState<SearchScope>("nearby");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [parks, setParks] = useState<ParkListing[]>([]);
   const [total, setTotal] = useState(0);
@@ -210,7 +213,7 @@ export default function ParksScreen() {
   const load = useCallback(async (
     mode: "nearby" | "search" = "nearby",
     isRefresh = false,
-    overrides?: { type?: string; radius?: number },
+    overrides?: { type?: string; radius?: number; scope?: SearchScope },
   ) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -228,10 +231,11 @@ export default function ParksScreen() {
       const destinationQuery = mode === "search" ? query.trim() : "";
       const effectiveType = overrides?.type ?? typeFilter;
       const effectiveRadius = overrides?.radius ?? radius;
+      const effectiveScope = overrides?.scope ?? searchScope;
       let regionalQuery = destinationQuery;
       let stateQuery: string | undefined;
 
-      if (!regionalQuery && nextCoords && (effectiveType === "STATE_PARK" || effectiveType === "NATIONAL_PARK")) {
+      if (!regionalQuery && effectiveScope === "regional" && nextCoords && (effectiveType === "STATE_PARK" || effectiveType === "NATIONAL_PARK")) {
         const [address] = await withTimeout(Location.reverseGeocodeAsync({
           latitude: nextCoords.lat,
           longitude: nextCoords.lng,
@@ -277,7 +281,7 @@ export default function ParksScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [coords, query, radius, typeFilter]);
+  }, [coords, query, radius, searchScope, typeFilter]);
 
   useEffect(() => {
     if (hasLoadedInitially.current) return;
@@ -318,9 +322,12 @@ export default function ParksScreen() {
           </TouchableOpacity>
         </View>
         <View style={styles.quickFilters}>
-          <TouchableOpacity onPress={() => load("nearby")} style={styles.quickChip}>
-            <Ionicons name="navigate" size={14} color={Colors.accent} />
-            <Text style={styles.quickChipText}>Near Me</Text>
+          <TouchableOpacity
+            onPress={() => { setSearchScope("nearby"); setQuery(""); void load("nearby", false, {scope:"nearby"}); }}
+            style={[styles.quickChip, searchScope === "nearby" && !query.trim() && styles.chipActive]}
+          >
+            <Ionicons name="navigate" size={14} color={searchScope === "nearby" && !query.trim() ? Colors.accent : Colors.muted} />
+            <Text style={[styles.quickChipText, searchScope === "nearby" && !query.trim() && styles.chipTextActive]}>Near Me</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setReviewedOnly((current) => !current)}
@@ -349,7 +356,10 @@ export default function ParksScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setTypeFilter(item.key);
-                  void load(query.trim() ? "search" : "nearby", false, { type: item.key });
+                  const regionalType = item.key === "STATE_PARK" || item.key === "NATIONAL_PARK";
+                  const nextScope: SearchScope = regionalType ? "regional" : "nearby";
+                  setSearchScope(nextScope);
+                  void load(query.trim() ? "search" : "nearby", false, { type: item.key, scope: nextScope });
                 }}
                 style={[styles.chip, typeFilter === item.key && styles.chipActive]}
               >
@@ -357,24 +367,32 @@ export default function ParksScreen() {
               </TouchableOpacity>
             )}
           />
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={RADIUS_OPTIONS}
-            keyExtractor={(item) => item.label}
-            contentContainerStyle={styles.chipList}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => {
-                  setRadius(item.meters);
-                  if (!query.trim()) void load("nearby", false, { radius: item.meters });
-                }}
-                style={[styles.chip, radius === item.meters && styles.chipActiveBlue]}
-              >
-                <Text style={[styles.chipText, radius === item.meters && styles.chipTextBlue]}>{item.label}</Text>
-              </TouchableOpacity>
-            )}
-          />
+          {searchScope === "regional" && (typeFilter === "STATE_PARK" || typeFilter === "NATIONAL_PARK") && !query.trim() ? (
+            <View style={styles.regionalNotice}>
+              <Ionicons name="map" size={15} color={Colors.info} />
+              <Text style={styles.regionalNoticeText}>{typeFilter === "STATE_PARK" ? "Statewide" : "Nationwide"} search - mileage filters are off</Text>
+            </View>
+          ) : (
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={RADIUS_OPTIONS}
+              keyExtractor={(item) => item.label}
+              contentContainerStyle={styles.chipList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setRadius(item.meters);
+                    setSearchScope("nearby");
+                    if (!query.trim()) void load("nearby", false, { radius: item.meters, scope:"nearby" });
+                  }}
+                  style={[styles.chip, radius === item.meters && searchScope === "nearby" && styles.chipActiveBlue]}
+                >
+                  <Text style={[styles.chipText, radius === item.meters && searchScope === "nearby" && styles.chipTextBlue]}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          )}
         </View>
       )}
 
@@ -494,6 +512,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing[1],
     gap: Spacing[2],
   },
+  regionalNotice:{marginHorizontal:Spacing[4],marginVertical:Spacing[1],minHeight:38,paddingHorizontal:Spacing[3],borderRadius:Radius.md,borderWidth:1,borderColor:Colors.info,backgroundColor:Colors.infoDim,flexDirection:"row",alignItems:"center",gap:Spacing[2]},
+  regionalNoticeText:{color:Colors.info,fontFamily:Typography.family,fontSize:12,fontWeight:"800"},
   chip: {
     paddingHorizontal: Spacing[3],
     paddingVertical: 7,

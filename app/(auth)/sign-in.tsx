@@ -9,6 +9,7 @@ import {
 import { useSignIn, useOAuth } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Input, Alert, PawText } from "../../src/components/ui";
 import { PawPassWordmark } from "../../src/components/ui/Logo";
@@ -18,7 +19,10 @@ import { api } from "../../src/lib/api";
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
 
-const OAUTH_REDIRECT_URL = "clerk://com.stodghillconsulting.pawpass.callback";
+const OAUTH_REDIRECT_URL = AuthSession.makeRedirectUri({
+  scheme: "pawpass",
+  path: "oauth-native-callback",
+});
 
 // ─── REVIEWER DEMO ACCOUNTS ───────────────────────────
 // These accounts are seeded in the DB and provided to Apple/Google reviewers

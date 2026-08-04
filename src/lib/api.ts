@@ -238,7 +238,7 @@ export const api = {
   users: {
     me: () => request<{ user: UserProfile }>("/users/me"),
 
-    update: (data: { name?: string; bio?: string; phone?: string; avatarUrl?: string | null; isHandler?: boolean }) =>
+    update: (data: { name?: string; bio?: string; phone?: string; avatarUrl?: string | null; isHandler?: boolean; accountUse?: "handler" | "trainer" | "handler_trainer" | "community"; handlerAttestationAccepted?: boolean; trainerAttestationAccepted?: boolean }) =>
       request<{ user: UserProfile }>("/users/me", {
         method: "PATCH",
         body: JSON.stringify(data),
