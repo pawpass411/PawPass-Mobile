@@ -9,12 +9,12 @@ import { Alert, Button, Card, Input, PawText, StarRating } from "../ui";
 import { api, UserProfile } from "../../lib/api";
 import { Colors, Radius, Spacing } from "../../lib/theme";
 
-type SelectedImage = { uri: string; name: string; mimeType: string };
+export type SelectedImage = { uri: string; name: string; mimeType: string };
 type ReviewTarget =
   | { kind: "business"; businessLocationId: string; placeName: string }
   | { kind: "park"; parkId: string; placeName: string };
 
-const HANDLER_TAGS = [
+export const HANDLER_TAGS = [
   ["staff_professional", "Staff was professional and respectful"],
   ["clear_entry_space", "Clear entry and path of travel"],
   ["service_dog_ready", "Staff handled service-dog access well"],
@@ -31,7 +31,7 @@ const HANDLER_TAGS = [
   ["manager_helpful", "A manager helped resolve the situation"],
 ] as const;
 
-const DOG_OWNER_TAGS = [
+export const DOG_OWNER_TAGS = [
   ["dog_water_available", "Water bowl or water station available"],
   ["dog_patio_available", "Outdoor seating or patio available"],
   ["dog_shade_available", "Shade or a cool waiting area available"],
@@ -44,7 +44,7 @@ const DOG_OWNER_TAGS = [
   ["dog_rules_unclear", "Pet-dog rules were unclear"],
 ] as const;
 
-const PARK_TAGS = [
+export const PARK_TAGS = [
   ["accessible_paths", "Accessible paths"],
   ["restrooms_available", "Restrooms available"],
   ["water_available", "Water available"],
@@ -59,7 +59,7 @@ const PARK_TAGS = [
   ["other_dog_conflict", "Another dog created a concern"],
 ] as const;
 
-const ACCESS_ISSUES = [
+export const ACCESS_ISSUES = [
   ["", "No category"],
   ["denied_entry", "Denied entry"],
   ["staff_education_issue", "Staff education issue"],
@@ -70,7 +70,7 @@ const ACCESS_ISSUES = [
   ["general_public_space_experience", "General public-space experience"],
 ] as const;
 
-async function chooseImages(max: number): Promise<SelectedImage[]> {
+export async function chooseImages(max: number): Promise<SelectedImage[]> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) throw new Error("Photo-library permission is needed to add pictures.");
   const result = await ImagePicker.launchImageLibraryAsync({
@@ -87,7 +87,7 @@ async function chooseImages(max: number): Promise<SelectedImage[]> {
   }));
 }
 
-function appendImages(form: FormData, field: string, images: SelectedImage[]) {
+export function appendImages(form: FormData, field: string, images: SelectedImage[]) {
   images.forEach(image => {
     form.append(field, {
       uri: image.uri,

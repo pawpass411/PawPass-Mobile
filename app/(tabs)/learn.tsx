@@ -9,6 +9,8 @@ import { Card, Alert, PawText, Divider } from "../../src/components/ui";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { JurisdictionRules } from "../../src/components/rights/jurisdiction-rules";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
+import { api, UserProfile } from "../../src/lib/api";
+import { useAuth } from "@clerk/clerk-expo";
 
 const TABS = ["FAQ", "Scripts", "Your Rights"] as const;
 type Tab = typeof TABS[number];
@@ -79,13 +81,41 @@ function FAQItem({ item }: { item: typeof FAQ[0] }) {
 }
 
 export default function LearnScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>("Your Rights");
+  const [profile, setProfile] = useState<UserProfile|null>(null);
+  const [profileReady, setProfileReady] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) { setProfile(null); setProfileReady(true); return; }
+    api.users.me().then(({user}) => setProfile(user)).catch(() => setProfile(null)).finally(() => setProfileReady(true));
+  }, [isLoaded,isSignedIn]);
 
   useEffect(() => {
     if (params.tab === "rights") setActiveTab("Your Rights");
   }, [params.tab]);
+
+  const hasFullRights = Boolean(profile && (
+    profile.isHandler || ["HANDLER","TRAINER"].includes(profile.role)
+  ));
+
+  if (!profileReady) return <View style={{flex:1,backgroundColor:Colors.bg,alignItems:"center",justifyContent:"center"}}><PawText variant="body" color={Colors.muted}>Loading guidance…</PawText></View>;
+
+  if (profileReady && !hasFullRights) return (
+    <View style={{flex:1,backgroundColor:Colors.bg}}>
+      <View style={[styles.header,{paddingTop:insets.top+8}]}><MobileTopBar active="rights"/><PawText variant="h2">Dog & Location Guidance</PawText><PawText variant="caption" color={Colors.dim}>Practical rules for everyday outings</PawText></View>
+      <ScrollView contentContainerStyle={[styles.scroll,{paddingBottom:insets.bottom+80,gap:Spacing[3]}]}>
+        <Alert variant="info" title="Rules depend on the location">Pet-dog access, leash requirements, and park rules can vary by property, city, county, and state. PawPass only presents a local rule when its source has been verified.</Alert>
+        <Card><PawText variant="h3">Check the specific place</PawText><PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>Use a PawPass park or business profile for posted leash rules, dog-friendly access, amenities, hours, and community experiences. Always follow posted signs.</PawText></Card>
+        <Card><PawText variant="h3">Service dogs are different</PawText><PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>Pet-dog permission does not determine service-dog access. Service-dog handlers and trainers receive the complete jurisdiction rights view.</PawText></Card>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/parks")} style={styles.communityButton}><PawText variant="body" weight="bold" color={Colors.bg}>Browse parks</PawText></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/discover")} style={[styles.communityButton,{backgroundColor:Colors.info}]}><PawText variant="body" weight="bold" color={Colors.bg}>Find dog-friendly places</PawText></TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
@@ -193,6 +223,7 @@ export default function LearnScreen() {
 }
 
 const styles = StyleSheet.create({
+  communityButton:{minHeight:50,borderRadius:Radius.md,backgroundColor:Colors.accent,alignItems:"center",justifyContent:"center",paddingHorizontal:Spacing[4]},
   header: {
     paddingHorizontal: Spacing[4], paddingBottom: Spacing[3],
     backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border,

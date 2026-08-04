@@ -107,9 +107,9 @@ export function Button({
   const textColor = {
     primary:   "#0D1F0D",
     secondary: Colors.white,
-    ghost:     Colors.accent,
+    ghost:     Colors.info,
     danger:    "#fff",
-    outline:   Colors.accent,
+    outline:   Colors.info,
   }[variant];
 
   const paddingV = { sm: 8, md: 12, lg: 16 }[size];
@@ -124,7 +124,7 @@ export function Button({
       style={[
         styles.button,
         { backgroundColor: bgColor, paddingVertical: paddingV },
-        variant === "outline" && { borderWidth: 1, borderColor: Colors.accent },
+        variant === "outline" && { borderWidth: 1, borderColor: Colors.infoBorder, backgroundColor: Colors.infoDim },
         variant === "secondary" && { borderWidth: 1, borderColor: Colors.infoBorder },
         fullWidth && { width: "100%" },
         isDisabled && { opacity: 0.45 },
@@ -147,7 +147,7 @@ type BadgeVariant = "green"|"cyan"|"yellow"|"red"|"purple"|"gray"|"orange";
 
 const badgeColors: Record<BadgeVariant, { bg: string; text: string; border: string }> = {
   green:  { bg: "rgba(170,255,0,0.12)",    text: "#AAFF00", border: "rgba(170,255,0,0.3)" },
-  cyan:   { bg: "rgba(34,211,238,0.1)",    text: "#22D3EE", border: "rgba(34,211,238,0.3)" },
+  cyan:   { bg: Colors.infoDim,              text: Colors.info, border: Colors.infoBorder },
   yellow: { bg: "rgba(252,211,77,0.1)",    text: "#FCD34D", border: "rgba(252,211,77,0.3)" },
   red:    { bg: "rgba(239,68,68,0.1)",     text: "#EF4444", border: "rgba(239,68,68,0.3)" },
   purple: { bg: "rgba(167,139,250,0.1)",   text: "#A78BFA", border: "rgba(167,139,250,0.3)" },
@@ -289,7 +289,7 @@ export function EmptyState({ icon = "", title, body, action }: EmptyStateProps) 
 // ─── ALERT ────────────────────────────────────────────
 type AlertVariant = "info"|"warn"|"danger"|"success";
 const alertConfig: Record<AlertVariant, { bg: string; border: string; color: string }> = {
-  info:    { bg: "rgba(34,211,238,0.08)",  border: "rgba(34,211,238,0.2)",  color: "#22D3EE" },
+  info:    { bg: Colors.infoDim,             border: Colors.infoBorder,       color: Colors.info },
   warn:    { bg: "rgba(252,211,77,0.08)",  border: "rgba(252,211,77,0.2)",  color: "#FCD34D" },
   danger:  { bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.2)",   color: "#EF4444" },
   success: { bg: "rgba(170,255,0,0.08)",   border: "rgba(170,255,0,0.2)",   color: "#AAFF00" },
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing[4],
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.infoBorder,
     ...Shadow.sm,
   },
   button: {

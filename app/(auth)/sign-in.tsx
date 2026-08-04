@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Input, Alert, PawText } from "../../src/components/ui";
 import { PawPassWordmark } from "../../src/components/ui/Logo";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
+import { api } from "../../src/lib/api";
 
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
@@ -67,6 +68,19 @@ export default function SignInScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showDemos, setShowDemos] = useState(false);
 
+  const routeSignedInUser = async () => {
+    // Clerk needs a moment to expose the newly active token to the API client.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (attempt) await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+      try {
+        const { user } = await api.users.me();
+        router.replace(["BUSINESS","STAFF","ADMIN","SUPERADMIN"].includes(user.role) ? "/business/dashboard" : "/(tabs)");
+        return;
+      } catch {}
+    }
+    router.replace("/(tabs)");
+  };
+
   const handleSignIn = async () => {
     if (!isLoaded) return;
     setLoading(true);
@@ -75,7 +89,7 @@ export default function SignInScreen() {
       const result = await signIn.create({ identifier: email, password });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.replace("/(tabs)");
+        await routeSignedInUser();
         return;
       }
 
@@ -115,7 +129,7 @@ export default function SignInScreen() {
       });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.replace("/(tabs)");
+        await routeSignedInUser();
         return;
       }
       setError("That verification code was not accepted. Please try again.");
@@ -138,7 +152,7 @@ export default function SignInScreen() {
       });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.replace("/(tabs)");
+        await routeSignedInUser();
       }
     } catch {
       setError("Demo account unavailable. Contact PawPass support.");
@@ -155,7 +169,7 @@ export default function SignInScreen() {
       });
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
-        router.replace("/(tabs)");
+        await routeSignedInUser();
       }
     } catch (err: any) {
       setError(

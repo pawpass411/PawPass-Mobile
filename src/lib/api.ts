@@ -185,6 +185,9 @@ export const api = {
     update: (id: string, data: { overallRating: number; accessRating?: number | null; body: string }) =>
       request<{ review: Review }>(`/reviews/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
+    updateForm: (id: string, form: FormData) =>
+      request<{ review: Review }>(`/reviews/${id}`, { method: "PATCH", body: form }),
+
     list: (params?: { locationId?: string; parkId?: string; mine?: boolean; page?: number }) => {
       const p = new URLSearchParams();
       if (params?.locationId) p.set("locationId", params.locationId);
@@ -233,11 +236,14 @@ export const api = {
   users: {
     me: () => request<{ user: UserProfile }>("/users/me"),
 
-    update: (data: { name?: string; isHandler?: boolean }) =>
+    update: (data: { name?: string; bio?: string; phone?: string; avatarUrl?: string | null; isHandler?: boolean }) =>
       request<{ user: UserProfile }>("/users/me", {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+
+    uploadAvatar: (form: FormData) =>
+      request<{ imageUrl: string }>("/uploads/profile-image", { method: "POST", body: form }),
   },
 
   contact: {
@@ -421,6 +427,17 @@ export interface Review {
   overallRating: number;
   accessRating: number | null;
   body: string;
+  tags?: string[];
+  accessIssueType?: string | null;
+  imageUrls?: string[];
+  verificationPhotoUrls?: string[];
+  receiptProofUrls?: string[];
+  gpsLat?: number | null;
+  gpsLng?: number | null;
+  gpsAccuracy?: number | null;
+  businessLocationId?: string | null;
+  parkId?: string | null;
+  isHandlerReview?: boolean;
   createdAt: string;
   user: { name: string | null; isHandler: boolean };
   businessResponse?: { body: string; createdAt: string } | null;
@@ -468,6 +485,8 @@ export interface UserProfile {
   name: string | null;
   email: string;
   avatarUrl: string | null;
+  bio: string | null;
+  phone: string | null;
   role: string;
   isHandler: boolean;
   handlerVerified: boolean;
@@ -507,4 +526,13 @@ export interface EffectiveRules {
   citations: { ref: string; label?: string; url?: string | null }[];
   notes: string[];
   layers: string[];
+  jurisdictionReviewStatus: "verified" | "partial" | "baseline_only";
+  rightsSections: {
+    id: "public_access" | "in_training" | "housing" | "employment" | "air_travel" | "education";
+    title: string;
+    summary: string;
+    bullets: string[];
+    citations: { ref: string; label?: string; url?: string | null }[];
+    status: "verified" | "baseline" | "pending";
+  }[];
 }

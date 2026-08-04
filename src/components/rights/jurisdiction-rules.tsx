@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking, Modal, ScrollView, TouchableOpacity, View } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import { api, EffectiveRules } from "../../lib/api";
 import { COUNTRIES, CountryCode, REGIONS } from "../../lib/jurisdictions";
 import { Colors, Radius, Spacing } from "../../lib/theme";
 import { Alert, Button, Card, PawText } from "../ui";
+import { BUNDLED_RIGHTS_UPDATED_AT, bundledRules, readStoredRules, storeRules } from "../../lib/offline-rights";
 
 function SelectSheet({
   label,
@@ -82,17 +84,36 @@ export function JurisdictionRules() {
   const [rules, setRules] = useState<EffectiveRules | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isOnline, setIsOnline] = useState(true);
+  const [source, setSource] = useState<"online"|"saved"|"bundled">("bundled");
+  const [updatedAt, setUpdatedAt] = useState(BUNDLED_RIGHTS_UPDATED_AT);
   const countryMeta = COUNTRIES.find(item => item.code === country)!;
+
+  useEffect(() => NetInfo.addEventListener(state => setIsOnline(Boolean(state.isConnected && state.isInternetReachable !== false))), []);
 
   const loadRules = async () => {
     setLoading(true);
     setError("");
+    const fallback = async () => {
+      const saved = await readStoredRules(country, region || undefined);
+      if (saved) { setRules(saved.rules); setUpdatedAt(saved.updatedAt); setSource("saved"); return; }
+      setRules(bundledRules(country, region || undefined));
+      setUpdatedAt(BUNDLED_RIGHTS_UPDATED_AT);
+      setSource("bundled");
+    };
     try {
+      const network = await NetInfo.fetch();
+      const onlineNow = Boolean(network.isConnected && network.isInternetReachable !== false);
+      setIsOnline(onlineNow);
+      if (!onlineNow || !isOnline) { await fallback(); return; }
       const data = await api.rules.effective({ country, state: region || undefined });
       setRules(data.rules);
-    } catch (caught) {
-      setRules(null);
-      setError(caught instanceof Error ? caught.message : "Rights information is unavailable right now.");
+      const stored = await storeRules(country, region || undefined, data.rules);
+      setUpdatedAt(stored.updatedAt);
+      setSource("online");
+    } catch {
+      await fallback();
+      setError("Live updates could not be reached, so PawPass is showing saved offline information.");
     } finally {
       setLoading(false);
     }
@@ -134,6 +155,9 @@ export function JurisdictionRules() {
 
       {rules ? (
         <>
+          <Alert variant={source === "online" ? "info" : "warn"} title={source === "online" ? "Current online information" : "Offline rights information"}>
+            {source === "online" ? "This copy was refreshed from PawPass." : source === "saved" ? "You are viewing the latest version previously saved on this phone." : "You are viewing the rights summary packaged with this app."} Last updated {new Date(updatedAt).toLocaleDateString()}.
+          </Alert>
           <Alert variant="info" title="Rules currently applied">
             {rules.layers.length > 1
               ? `PawPass combined ${rules.layers.join(" + ").replace(/_/g, " ")} guidance for this selection.`
@@ -141,6 +165,32 @@ export function JurisdictionRules() {
                 ? "The national or federal baseline is shown. A separate reviewed local summary may not yet be published."
                 : "The national or federal baseline is shown."}
           </Alert>
+
+          {rules.jurisdictionReviewStatus === "baseline_only" ? (
+            <Alert variant="warn" title="Detailed jurisdiction review pending">
+              PawPass has not yet completed a source-by-source review for this state, province, or territory. The national baseline and official sources are shown without guessing at local rights.
+            </Alert>
+          ) : null}
+
+          {rules.rightsSections?.map(section => (
+            <Card key={section.id}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", gap: Spacing[2], marginBottom: Spacing[2] }}>
+                <PawText variant="h3">{section.title}</PawText>
+                <PawText variant="micro" color={section.status === "verified" ? Colors.accent : section.status === "pending" ? Colors.warn : Colors.info}>
+                  {section.status === "verified" ? "VERIFIED" : section.status === "pending" ? "REVIEW PENDING" : "BASELINE"}
+                </PawText>
+              </View>
+              <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22 }}>{section.summary}</PawText>
+              {section.bullets.map((bullet, index) => (
+                <PawText key={index} variant="body" color={Colors.muted} style={{ lineHeight: 22, marginTop: Spacing[2] }}>• {bullet}</PawText>
+              ))}
+              {section.citations.map((citation, index) => citation.url ? (
+                <TouchableOpacity key={`${citation.ref}-${index}`} onPress={() => Linking.openURL(citation.url!)} style={{ paddingTop: Spacing[3] }}>
+                  <PawText variant="caption" color={Colors.info} weight="semibold">{citation.label ?? citation.ref} →</PawText>
+                </TouchableOpacity>
+              ) : null)}
+            </Card>
+          ))}
 
           <Card>
             <PawText variant="label" color={Colors.accent} style={{ marginBottom: Spacing[2] }}>QUESTIONS A BUSINESS MAY ASK</PawText>
