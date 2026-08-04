@@ -12,6 +12,7 @@ import { api, Review } from "../../src/lib/api";
 import { Colors, Spacing } from "../../src/lib/theme";
 import { ACCESS_ISSUES, DOG_OWNER_TAGS, HANDLER_TAGS, PARK_TAGS, appendImages, chooseImages, SelectedImage } from "../../src/components/reviews/review-form";
 import { listReviewOutbox, removeReviewOutboxItem, ReviewOutboxItem, subscribeReviewOutbox, syncReviewOutbox } from "../../src/lib/review-outbox";
+import { track } from "../../src/lib/analytics";
 
 export default function MyReviewsScreen() {
   const { userId } = useAuth();
@@ -72,6 +73,7 @@ export default function MyReviewsScreen() {
       appendImages(form, "receiptProofs", newReceipts);
       if (editGps) { form.append("gpsLat", String(editGps.lat)); form.append("gpsLng", String(editGps.lng)); form.append("gpsAccuracy", String(editGps.accuracy)); }
       const data = await api.reviews.updateForm(review.id, form);
+      void track({ eventName:"review_updated", path:"/reviews/mine", targetType:review.parkId ? "park" : "business", targetId:review.id, success:true, metadata:{ photos:newImages.length + newVerification.length + newReceipts.length, hasGps:Boolean(editGps) } });
       setReviews(current => current.map(item => item.id === review.id ? { ...item, ...data.review } : item));
       setEditingId(null);
     } catch (caught) {

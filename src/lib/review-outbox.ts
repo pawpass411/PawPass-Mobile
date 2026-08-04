@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import * as FileSystem from "expo-file-system/legacy";
 import { ApiError, api } from "./api";
+import { track } from "./analytics";
 
 export type OutboxImage = { uri: string; name: string; mimeType: string };
 export type OutboxTarget =
@@ -137,6 +138,7 @@ async function runSync(onlyId?: string, ownerUserId?: string) {
     await updateItem(item.id, { status: "uploading", attempts: item.attempts + 1, lastError: undefined });
     try {
       await api.reviews.createForm(reviewOutboxForm(item));
+      void track({ eventName:"review_submitted", targetType:item.target.kind, targetId:item.target.kind === "business" ? item.target.businessLocationId : item.target.parkId, success:true, metadata:{ source:"offline_queue" } });
       await removeReviewOutboxItem(item.id);
     } catch (error) {
       // A timed-out first request may have reached PawPass. The server's one-review-per-place

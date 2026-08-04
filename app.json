@@ -58,6 +58,7 @@
     },
     "android": {
       "package": "com.stodghillconsulting.pawpass",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon/foreground.png",
@@ -102,6 +103,8 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics",
       "expo-secure-store",
       [
         "expo-location",

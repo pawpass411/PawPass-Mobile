@@ -16,4 +16,3 @@ expo-env.d.ts
 # @end expo-cli
 
 # Firebase Android configuration is supplied to EAS as a protected file variable.
-google-services.json

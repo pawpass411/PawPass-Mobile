@@ -15,6 +15,7 @@ import { Button, Input, Alert, PawText } from "../../src/components/ui";
 import { PawPassWordmark } from "../../src/components/ui/Logo";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
 import { api } from "../../src/lib/api";
+import { track } from "../../src/lib/analytics";
 
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
@@ -93,6 +94,7 @@ export default function SignInScreen() {
       const result = await signIn.create({ identifier: email, password });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
+        void track({ eventName:"sign_in_succeeded", path:"/sign-in", success:true, metadata:{ method:"password" } });
         await routeSignedInUser();
         return;
       }
@@ -118,6 +120,7 @@ export default function SignInScreen() {
 
       setError("Sign-in needs another step. Please try again or use Google sign-in.");
     } catch (err: any) {
+      void track({ eventName:"sign_in_failed", path:"/sign-in", success:false, errorCode:"password_failed", metadata:{ method:"password" } });
       setError(err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? "Sign in failed. Check your email and password.");
     } finally { setLoading(false); }
   };
@@ -133,11 +136,13 @@ export default function SignInScreen() {
       });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
+        void track({ eventName:"sign_in_succeeded", path:"/sign-in", success:true, metadata:{ method:"email_code" } });
         await routeSignedInUser();
         return;
       }
       setError("That verification code was not accepted. Please try again.");
     } catch (err: any) {
+      void track({ eventName:"sign_in_failed", path:"/sign-in", success:false, errorCode:"verification_failed", metadata:{ method:"email_code" } });
       setError(err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? "Verification failed. Please try again.");
     } finally {
       setLoading(false);
@@ -173,9 +178,11 @@ export default function SignInScreen() {
       });
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
+        void track({ eventName:"sign_in_succeeded", path:"/sign-in", success:true, metadata:{ method:provider } });
         await routeSignedInUser();
       }
     } catch (err: any) {
+      void track({ eventName:"sign_in_failed", path:"/sign-in", success:false, errorCode:`${provider}_failed`, metadata:{ method:provider } });
       setError(
         err?.errors?.[0]?.longMessage ??
         err?.errors?.[0]?.message ??

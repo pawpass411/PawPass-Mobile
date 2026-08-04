@@ -4,6 +4,7 @@
 
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+import { telemetryContext } from "./telemetry-context";
 
 const BASE_URL = (
   process.env.EXPO_PUBLIC_API_BASE_URL ??
@@ -17,6 +18,10 @@ let authTokenGetter: AuthTokenGetter | null = null;
 export function configureApiAuth(getToken: AuthTokenGetter) {
   authTokenGetter = getToken;
 }
+
+type TelemetryCallback = (event: { eventName: "api_failed"; path: string; success: false; errorCode: string; durationMs: number }) => void;
+let telemetryCallback: TelemetryCallback | null = null;
+export function configureApiTelemetry(callback: TelemetryCallback | null) { telemetryCallback = callback; }
 
 // ─── REQUEST HELPER ──────────────────────────────────
 async function request<T>(
@@ -36,6 +41,7 @@ async function request<T>(
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestOptions.timeoutMs ?? 20_000);
+  const startedAt = Date.now();
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}/api${path}`, {
@@ -45,10 +51,14 @@ async function request<T>(
         ...(!isFormData ? { "Content-Type": "application/json" } : {}),
         Accept: "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "X-PawPass-Platform": telemetryContext.platform,
+        "X-PawPass-App-Version": telemetryContext.appVersion,
+        "X-PawPass-Session-Id": telemetryContext.sessionId,
         ...(options.headers ?? {}),
       },
     });
   } catch (error) {
+    if (path !== "/analytics/events") telemetryCallback?.({ eventName: "api_failed", path, success: false, errorCode: controller.signal.aborted ? "timeout" : "network_error", durationMs: Date.now() - startedAt });
     if (controller.signal.aborted) {
       throw new ApiError(0, "PawPass took too long to respond. Check your connection and try again.");
     }
@@ -59,6 +69,7 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (path !== "/analytics/events") telemetryCallback?.({ eventName: "api_failed", path, success: false, errorCode: `http_${res.status}`, durationMs: Date.now() - startedAt });
     throw new ApiError(res.status, body.error ?? `HTTP ${res.status}`);
   }
 
@@ -76,6 +87,16 @@ export class ApiError extends Error {
 
 // Businesses
 export const api = {
+  analytics: {
+    events: (events: Record<string, unknown>[]) => request<{ accepted: number }>("/analytics/events", {
+      method: "POST",
+      body: JSON.stringify({ events }),
+    }, { auth: true, timeoutMs: 10_000 }),
+  },
+  pushDevices: {
+    register: (data: { expoPushToken: string; platform: "android" | "ios"; appVersion?: string; deviceName?: string }) =>
+      request<{ ok: boolean; deviceId: string }>("/push-devices", { method: "POST", body: JSON.stringify(data) }),
+  },
   places: {
     ensureRecord: (data: {
       googlePlaceId: string;

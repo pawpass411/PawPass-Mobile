@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -11,6 +11,7 @@ import { Alert, Button, Card, Input, PawText, StarRating } from "../ui";
 import { api, ApiError, UserProfile } from "../../lib/api";
 import { listReviewOutbox, queueReview, ReviewOutboxDraft } from "../../lib/review-outbox";
 import { Colors, Radius, Spacing } from "../../lib/theme";
+import { track } from "../../lib/analytics";
 
 export type SelectedImage = { uri: string; name: string; mimeType: string };
 type ReviewTarget =
@@ -157,6 +158,17 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
   const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
   const targetId = target.kind === "business" ? target.businessLocationId : target.parkId;
+  const reviewStarted = useRef(false);
+  const reviewFinished = useRef(false);
+
+  useEffect(() => {
+    if (!profileReady || !isSignedIn || !profile?.onboardingCompletedAt || existingReviewId || checkingExisting || reviewStarted.current) return;
+    reviewStarted.current = true;
+    void track({ eventName:"review_started", path:`/${target.kind}/${targetId}`, targetType:target.kind, targetId });
+    return () => {
+      if (!reviewFinished.current) void track({ eventName:"review_abandoned", path:`/${target.kind}/${targetId}`, targetType:target.kind, targetId });
+    };
+  }, [checkingExisting, existingReviewId, isSignedIn, profile?.onboardingCompletedAt, profileReady, target.kind, targetId]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -287,12 +299,16 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
       const network = await NetInfo.fetch();
       if (!network.isConnected || network.isInternetReachable === false) {
         await queueReview(draft);
+        reviewFinished.current = true;
+        void track({ eventName:"review_queued_offline", targetType:target.kind, targetId, success:true, metadata:{ photos:publicPhotos.length + verificationPhotos.length + receiptPhotos.length, hasGps:Boolean(gps) } });
         setQueued(true);
         setSubmitted(true);
         onSubmitted?.();
         return;
       }
       await api.reviews.createForm(form);
+      reviewFinished.current = true;
+      void track({ eventName:"review_submitted", targetType:target.kind, targetId, success:true, metadata:{ photos:publicPhotos.length + verificationPhotos.length + receiptPhotos.length, hasGps:Boolean(gps) } });
       setSubmitted(true);
       onSubmitted?.();
     } catch (caught) {
@@ -300,6 +316,8 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
       if (connectionFailure) {
         try {
           await queueReview(draft);
+          reviewFinished.current = true;
+          void track({ eventName:"review_queued_offline", targetType:target.kind, targetId, success:true, metadata:{ reason:"connection_failure", photos:publicPhotos.length + verificationPhotos.length + receiptPhotos.length, hasGps:Boolean(gps) } });
           setQueued(true);
           setSubmitted(true);
           onSubmitted?.();

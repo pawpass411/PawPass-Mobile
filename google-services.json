@@ -1,0 +1,23 @@
+{
+  "project_info": {
+    "project_number": "163412305509",
+    "project_id": "apawcalypsepawpass",
+    "storage_bucket": "apawcalypsepawpass.firebasestorage.app"
+  },
+  "client": [{
+    "client_info": {
+      "mobilesdk_app_id": "1:163412305509:android:f40215078c97c17bce888c",
+      "android_client_info": { "package_name": "com.stodghillconsulting.pawpass" }
+    },
+    "oauth_client": [{
+      "client_id": "163412305509-mviraqd67i6tcknecu0n7gruiecevjd0.apps.googleusercontent.com",
+      "client_type": 3
+    }],
+    "api_key": [{ "current_key": "AIzaSyALoYljwZBOKV89CigLbxl4GIiJmnSF6FE" }],
+    "services": { "appinvite_service": { "other_platform_oauth_client": [{
+      "client_id": "163412305509-mviraqd67i6tcknecu0n7gruiecevjd0.apps.googleusercontent.com",
+      "client_type": 3
+    }] } }
+  }],
+  "configuration_version": "1"
+}

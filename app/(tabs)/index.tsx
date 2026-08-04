@@ -14,6 +14,7 @@ import { Alert, Badge, Button, Card, EmptyState, PawText, Skeleton } from "../..
 import { PawPassMark } from "../../src/components/ui/Logo";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { api, UnifiedListing } from "../../src/lib/api";
+import { track } from "../../src/lib/analytics";
 import { getUsableLocation } from "../../src/lib/location";
 import { Colors, Radius, Spacing, Typography } from "../../src/lib/theme";
 
@@ -211,6 +212,7 @@ export default function DiscoverScreen() {
     if (!nextCoords) return;
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
+    const startedAt = Date.now();
     try {
       const data = await api.places.nearby({
         ...nextCoords,
@@ -219,8 +221,10 @@ export default function DiscoverScreen() {
       });
       setResults(data.results ?? []);
       setMessage(`${data.results?.length ?? 0} nearby listings loaded`);
+      void track({ eventName:"search_completed", path:"/discover", category:type || "all", resultCount:data.results?.length ?? 0, durationMs:Date.now()-startedAt, success:true, metadata:{ mode:"nearby", radiusMiles } });
     } catch (err: any) {
       setError(err?.message ?? "Nearby search failed.");
+      void track({ eventName:"search_failed", path:"/discover", category:type || "all", durationMs:Date.now()-startedAt, success:false, errorCode:"nearby_failed" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -238,6 +242,7 @@ export default function DiscoverScreen() {
 
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
+    const startedAt = Date.now();
     try {
       const searchOrigin = coords ?? await requestLocation();
       const data = await api.places.search({
@@ -253,8 +258,10 @@ export default function DiscoverScreen() {
       });
       setResults(deduped);
       setMessage(`${deduped.length} listings found`);
+      void track({ eventName:"search_completed", path:"/discover", searchTerm:trimmed, category:type || "all", resultCount:deduped.length, durationMs:Date.now()-startedAt, success:true, metadata:{ mode:"text" } });
     } catch (err: any) {
       setError(err?.message ?? "Search failed. Try adding a city or ZIP code.");
+      void track({ eventName:"search_failed", path:"/discover", searchTerm:trimmed, category:type || "all", durationMs:Date.now()-startedAt, success:false, errorCode:"text_search_failed" });
     } finally {
       setLoading(false);
       setRefreshing(false);

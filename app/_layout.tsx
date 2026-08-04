@@ -14,6 +14,9 @@ import Constants from "expo-constants";
 import { Colors } from "../src/lib/theme";
 import { configureApiAuth } from "../src/lib/api";
 import { ReviewOutboxSync } from "../src/components/reviews/review-outbox-sync";
+import { AnalyticsLifecycle } from "../src/components/analytics-lifecycle";
+import { usePushNotifications } from "../src/hooks/usePushNotifications";
+import { CrashMonitoring } from "../src/components/crash-monitoring";
 
 // Keep the native splash visible only until React mounts. Authentication may
 // continue loading in the background and must never trap users on the logo.
@@ -35,7 +38,8 @@ const CLERK_KEY =
   "";
 
 function RootLayoutInner() {
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
+  usePushNotifications(Boolean(isSignedIn));
 
   // Use Clerk's current, automatically refreshed session for every PawPass API request.
   useEffect(() => {
@@ -48,6 +52,8 @@ function RootLayoutInner() {
 
   return (
     <>
+    <AnalyticsLifecycle/>
+    <CrashMonitoring/>
     <ReviewOutboxSync/>
     <Stack
       screenOptions={{

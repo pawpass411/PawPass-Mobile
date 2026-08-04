@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Alert, Badge, Button, Card, EmptyState, PawText, Skeleton } from "../../src/components/ui";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { api, ParkListing } from "../../src/lib/api";
+import { track } from "../../src/lib/analytics";
 import { getUsableLocation, withTimeout } from "../../src/lib/location";
 import { sortAndFilterParks } from "../../src/lib/park-listing";
 import { Colors, Radius, Spacing, Typography } from "../../src/lib/theme";
@@ -218,6 +219,7 @@ export default function ParksScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setNotice(null);
+    const startedAt = Date.now();
 
     try {
       let nextCoords = coords;
@@ -263,6 +265,7 @@ export default function ParksScreen() {
 
       setParks(data.results ?? []);
       setTotal(data.total ?? data.results?.length ?? 0);
+      void track({ eventName:"search_completed", path:"/parks", searchTerm:destinationQuery || undefined, category:effectiveType || "all", state:stateQuery, resultCount:data.results?.length ?? 0, durationMs:Date.now()-startedAt, success:true, metadata:{ scope:effectiveScope, mode } });
 
       if (destinationQuery) {
         setNotice(`Showing parks matching "${destinationQuery}" instead of places near your current location.`);
@@ -277,6 +280,7 @@ export default function ParksScreen() {
       setParks([]);
       setTotal(0);
       setNotice("PawPass could not load parks right now. Try again, or search by city or ZIP.");
+      void track({ eventName:"search_failed", path:"/parks", searchTerm:query.trim() || undefined, category:typeFilter || "all", durationMs:Date.now()-startedAt, success:false, errorCode:"park_search_failed" });
     } finally {
       setLoading(false);
       setRefreshing(false);
