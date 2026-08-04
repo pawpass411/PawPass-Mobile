@@ -252,6 +252,8 @@ export default function ParksScreen() {
         type: effectiveType || undefined,
         lat: useCurrentLocation ? nextCoords?.lat : undefined,
         lng: useCurrentLocation ? nextCoords?.lng : undefined,
+        originLat: nextCoords?.lat,
+        originLng: nextCoords?.lng,
         radius: useCurrentLocation && nextCoords ? effectiveRadius : undefined,
       });
 

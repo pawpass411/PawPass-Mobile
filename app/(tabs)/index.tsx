@@ -239,11 +239,12 @@ export default function DiscoverScreen() {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
+      const searchOrigin = coords ?? await requestLocation();
       const data = await api.places.search({
         query: trimmed,
         type: type || undefined,
-        lat: coords?.lat,
-        lng: coords?.lng,
+        lat: searchOrigin?.lat,
+        lng: searchOrigin?.lng,
       });
       const combined = [...(data.featured ?? []), ...(data.results ?? [])];
       const deduped = combined.filter((item, index, all) => {

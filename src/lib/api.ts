@@ -154,13 +154,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-    list: (params?: { q?: string; state?: string; type?: string; lat?: number; lng?: number; radius?: number; page?: number }) => {
+    list: (params?: { q?: string; state?: string; type?: string; lat?: number; lng?: number; originLat?: number; originLng?: number; radius?: number; page?: number }) => {
       const p = new URLSearchParams();
       if (params?.q)     p.set("q", params.q);
       if (params?.state) p.set("state", params.state);
       if (params?.type)  p.set("type", params.type);
       if (params?.lat != null) p.set("lat", String(params.lat));
       if (params?.lng != null) p.set("lng", String(params.lng));
+      if (params?.originLat != null) p.set("originLat", String(params.originLat));
+      if (params?.originLng != null) p.set("originLng", String(params.originLng));
       if (params?.radius) p.set("radius", String(params.radius));
       if (params?.page)  p.set("page", String(params.page));
       return request<{ results: ParkListing[]; total: number; pages: number }>(`/parks?${p}`, {}, { auth: false });
