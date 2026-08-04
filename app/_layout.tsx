@@ -14,6 +14,7 @@ import Constants from "expo-constants";
 import { Colors } from "../src/lib/theme";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { configureApiAuth } from "../src/lib/api";
+import { ReviewOutboxSync } from "../src/components/reviews/review-outbox-sync";
 
 // Keep the native splash visible only until React mounts. Authentication may
 // continue loading in the background and must never trap users on the logo.
@@ -63,6 +64,8 @@ function RootLayoutInner() {
   }, [expoPushToken]);
 
   return (
+    <>
+    <ReviewOutboxSync/>
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: Colors.surface },
@@ -155,6 +158,7 @@ function RootLayoutInner() {
         options={{ title: "Handler Status" }}
       />
     </Stack>
+    </>
   );
 }
 

@@ -3,10 +3,13 @@ import { TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import NetInfo from "@react-native-community/netinfo";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/clerk-expo";
 import { router } from "expo-router";
 import { Alert, Button, Card, Input, PawText, StarRating } from "../ui";
-import { api, UserProfile } from "../../lib/api";
+import { api, ApiError, UserProfile } from "../../lib/api";
+import { listReviewOutbox, queueReview, ReviewOutboxDraft } from "../../lib/review-outbox";
 import { Colors, Radius, Spacing } from "../../lib/theme";
 
 export type SelectedImage = { uri: string; name: string; mimeType: string };
@@ -134,7 +137,7 @@ function PhotoGroup({
 }
 
 export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSubmitted?: () => void }) {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, userId } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [dogFriendly, setDogFriendly] = useState<boolean | null>(null);
   const [accessRating, setAccessRating] = useState(0);
@@ -148,26 +151,44 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
   const [gpsMessage, setGpsMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [queued, setQueued] = useState(false);
   const [error, setError] = useState("");
   const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
   const targetId = target.kind === "business" ? target.businessLocationId : target.parkId;
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    api.users.me().then(data => setProfile(data.user)).catch(() => setProfile(null));
-  }, [isLoaded, isSignedIn]);
+    if (!isLoaded || !isSignedIn || !userId) return;
+    const cacheKey = `pawpass:review-profile:${userId}`;
+    AsyncStorage.getItem(cacheKey)
+      .then(value => { if (value) setProfile(JSON.parse(value) as UserProfile); })
+      .catch(() => {});
+    api.users.me().then(data => {
+      setProfile(data.user);
+      AsyncStorage.setItem(cacheKey, JSON.stringify(data.user)).catch(() => {});
+    }).catch(() => {});
+  }, [isLoaded, isSignedIn, userId]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     setCheckingExisting(true);
-    api.reviews.list(target.kind === "business"
-      ? { mine:true, locationId:targetId }
-      : { mine:true, parkId:targetId })
-      .then(data => setExistingReviewId(data.reviews[0]?.id ?? null))
+    Promise.all([
+      api.reviews.list(target.kind === "business"
+        ? { mine:true, locationId:targetId }
+        : { mine:true, parkId:targetId }).catch(() => ({ reviews: [] })),
+      listReviewOutbox(),
+    ])
+      .then(([data, pending]) => {
+        const queued = pending.find(item => item.ownerUserId === userId && item.target.kind === target.kind && (
+          item.target.kind === "business"
+            ? item.target.businessLocationId === targetId
+            : item.target.parkId === targetId
+        ));
+        setExistingReviewId(data.reviews[0]?.id ?? (queued ? `outbox:${queued.id}` : null));
+      })
       .catch(() => setExistingReviewId(null))
       .finally(() => setCheckingExisting(false));
-  }, [isLoaded, isSignedIn, target.kind, targetId]);
+  }, [isLoaded, isSignedIn, target.kind, targetId, userId]);
 
   const isHandlerReview = profile?.role === "HANDLER" || profile?.role === "TRAINER" || profile?.isHandler;
   const isBusinessAccount = profile?.role === "BUSINESS";
@@ -220,15 +241,28 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
       return;
     }
 
-    const form = new FormData();
-    if (target.kind === "business") form.append("businessLocationId", target.businessLocationId);
-    else form.append("parkId", target.parkId);
     const overallRating = target.kind === "business" && isHandlerReview
       ? accessRating
       : dogFriendly ? 5 : 1;
+    const petTag = dogFriendly === null ? [] : [dogFriendly ? "pet_dog_friendly" : "pet_dog_not_friendly"];
+    const draft: ReviewOutboxDraft = {
+      ownerUserId: userId!,
+      target,
+      overallRating,
+      accessRating: accessRating || undefined,
+      tags: [...petTag, ...tags],
+      accessIssueType: target.kind === "business" && isHandlerReview && accessIssue ? accessIssue : undefined,
+      body: body.trim(),
+      gps: gps ?? undefined,
+      publicPhotos,
+      verificationPhotos,
+      receiptPhotos,
+    };
+    const form = new FormData();
+    if (target.kind === "business") form.append("businessLocationId", target.businessLocationId);
+    else form.append("parkId", target.parkId);
     form.append("overallRating", String(overallRating));
     if (accessRating) form.append("accessRating", String(accessRating));
-    const petTag = dogFriendly === null ? [] : [dogFriendly ? "pet_dog_friendly" : "pet_dog_not_friendly"];
     form.append("tags", JSON.stringify([...petTag, ...tags]));
     if (target.kind === "business" && isHandlerReview && accessIssue) form.append("accessIssueType", accessIssue);
     form.append("body", body.trim());
@@ -243,11 +277,31 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
 
     setSubmitting(true);
     try {
+      const network = await NetInfo.fetch();
+      if (!network.isConnected || network.isInternetReachable === false) {
+        await queueReview(draft);
+        setQueued(true);
+        setSubmitted(true);
+        onSubmitted?.();
+        return;
+      }
       await api.reviews.createForm(form);
       setSubmitted(true);
       onSubmitted?.();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Review submission failed.");
+      const connectionFailure = !(caught instanceof ApiError) || caught.status === 0;
+      if (connectionFailure) {
+        try {
+          await queueReview(draft);
+          setQueued(true);
+          setSubmitted(true);
+          onSubmitted?.();
+        } catch {
+          setError("The review could not be uploaded or safely saved. Please keep this screen open and try again.");
+        }
+      } else {
+        setError(caught instanceof Error ? caught.message : "Review submission failed.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -275,8 +329,10 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
   }
   if (submitted) {
     return (
-      <Alert variant="success" title="Review submitted for approval">
-        Your review is stored in PawPass and will appear publicly after moderation.
+      <Alert variant="success" title={queued ? "Review saved for upload" : "Review submitted for approval"}>
+        {queued
+          ? "Your review, pictures, and private GPS log are safely stored on this phone. PawPass will upload them when reception returns. Keep the app installed until it finishes."
+          : "Your review is stored in PawPass and will appear publicly after moderation."}
       </Alert>
     );
   }

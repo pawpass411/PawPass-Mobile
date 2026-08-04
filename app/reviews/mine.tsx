@@ -1,19 +1,23 @@
 // app/reviews/mine.tsx
 import { useState, useEffect } from "react";
 import {
-  View, FlatList, StyleSheet, RefreshControl, TouchableOpacity,
+  View, FlatList, StyleSheet, RefreshControl, TouchableOpacity, Alert as NativeAlert,
 } from "react-native";
 import * as Location from "expo-location";
 import { router } from "expo-router";
+import { useAuth } from "@clerk/clerk-expo";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Alert, Button, Card, PawText, EmptyState, Input, StarRating } from "../../src/components/ui";
 import { api, Review } from "../../src/lib/api";
 import { Colors, Spacing } from "../../src/lib/theme";
 import { ACCESS_ISSUES, DOG_OWNER_TAGS, HANDLER_TAGS, PARK_TAGS, appendImages, chooseImages, SelectedImage } from "../../src/components/reviews/review-form";
+import { listReviewOutbox, removeReviewOutboxItem, ReviewOutboxItem, subscribeReviewOutbox, syncReviewOutbox } from "../../src/lib/review-outbox";
 
 export default function MyReviewsScreen() {
+  const { userId } = useAuth();
   const insets = useSafeAreaInsets();
   const [reviews, setReviews] = useState<(Review & { locationName?: string })[]>([]);
+  const [outbox, setOutbox] = useState<ReviewOutboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -101,6 +105,7 @@ export default function MyReviewsScreen() {
 
   const load = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
+    listReviewOutbox().then(items => setOutbox(items.filter(item => !userId || item.ownerUserId === userId))).catch(() => {});
     try {
       const data = await api.reviews.list({ mine: true });
       setReviews((data.reviews as any[]) ?? []);
@@ -108,7 +113,47 @@ export default function MyReviewsScreen() {
     finally { setLoading(false); setRefreshing(false); }
   };
 
+  // The first load is intentionally mount-only; pull-to-refresh handles later reloads.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
+  useEffect(() => subscribeReviewOutbox(() => {
+    listReviewOutbox().then(items => setOutbox(items.filter(item => !userId || item.ownerUserId === userId))).catch(() => {});
+  }), [userId]);
+
+  const retryQueued = async (id: string) => {
+    await syncReviewOutbox(id, userId ?? undefined).catch(() => {});
+    await load();
+  };
+
+  const deleteQueued = (item: ReviewOutboxItem) => NativeAlert.alert(
+    "Delete saved review?",
+    `This permanently removes the offline review and its saved pictures for ${item.target.placeName}.`,
+    [
+      { text: "Keep it", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => removeReviewOutboxItem(item.id).catch(() => {}) },
+    ],
+  );
+
+  const OutboxCards = () => outbox.length ? (
+    <View style={{ gap: Spacing[3], marginBottom: Spacing[4] }}>
+      <Alert variant="info" title={`${outbox.length} review${outbox.length === 1 ? "" : "s"} waiting to upload`}>
+        PawPass will retry automatically when reception returns. Keep PawPass installed so saved pictures are not removed.
+      </Alert>
+      {outbox.map(item => (
+        <Card key={item.id} style={{ gap: Spacing[2] }}>
+          <PawText variant="h3">{item.target.placeName}</PawText>
+          <PawText variant="caption" color={item.status === "failed" ? Colors.danger : Colors.muted}>
+            {item.status === "uploading" ? "Uploading now…" : item.status === "failed" ? item.lastError || "Upload failed." : "Saved on this phone"}
+          </PawText>
+          <PawText variant="body" color={Colors.muted} numberOfLines={3}>{item.body}</PawText>
+          <View style={{ flexDirection: "row", gap: Spacing[2] }}>
+            <Button style={{ flex: 1 }} size="sm" onPress={() => retryQueued(item.id)} disabled={item.status === "uploading"}>Retry now</Button>
+            <Button style={{ flex: 1 }} size="sm" variant="outline" onPress={() => deleteQueued(item)}>Delete draft</Button>
+          </View>
+        </Card>
+      ))}
+    </View>
+  ) : null;
 
   if (loading) {
     return (
@@ -120,7 +165,7 @@ export default function MyReviewsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-      {reviews.length === 0 ? (
+      {reviews.length === 0 && outbox.length === 0 ? (
         <EmptyState
           icon=""
           title="No reviews yet"
@@ -139,6 +184,7 @@ export default function MyReviewsScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.accent} />
           }
+          ListHeaderComponent={<OutboxCards/>}
           renderItem={({ item: r }) => (
             <Card style={{ marginBottom: Spacing[3] }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: Spacing[2] }}>
