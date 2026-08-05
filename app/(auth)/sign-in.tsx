@@ -101,16 +101,20 @@ export default function SignInScreen() {
 
       const resultStatus = result.status as string | null;
       if (resultStatus === "needs_client_trust" || resultStatus === "needs_second_factor") {
-        const emailFactor = result.supportedSecondFactors?.find(
+        const resultWithEmailFactor = result as unknown as {
+          supportedSecondFactors?: { strategy: string; emailAddressId?: string }[];
+          prepareSecondFactor: (params: { strategy: "email_code"; emailAddressId: string }) => Promise<unknown>;
+        };
+        const emailFactor = resultWithEmailFactor.supportedSecondFactors?.find(
           factor => factor.strategy === "email_code",
         );
 
-        if (!emailFactor || !("emailAddressId" in emailFactor)) {
+        if (!emailFactor?.emailAddressId) {
           setError("This account requires a verification method that is not available in the app.");
           return;
         }
 
-        await result.prepareSecondFactor({
+        await resultWithEmailFactor.prepareSecondFactor({
           strategy: "email_code",
           emailAddressId: emailFactor.emailAddressId,
         });
@@ -130,7 +134,11 @@ export default function SignInScreen() {
     setLoading(true);
     setError(null);
     try {
-      const result = await signIn.attemptSecondFactor({
+      const attemptEmailFactor = signIn!.attemptSecondFactor as unknown as (params: {
+        strategy: "email_code";
+        code: string;
+      }) => Promise<{ status: string; createdSessionId: string | null }>;
+      const result = await attemptEmailFactor({
         strategy: "email_code",
         code: verificationCode.trim(),
       });
