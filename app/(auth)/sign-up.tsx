@@ -25,10 +25,12 @@ export default function SignUpScreen() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   const handleRegister = async () => {
     if (!isLoaded) return;
     if (!email || !password) { setError("Email and password are required."); return; }
+    if (!ageConfirmed) { setError("You must confirm that you are at least 14 and agree to the Terms and Privacy Policy."); return; }
     setLoading(true); setError(null);
     try {
       await signUp.create({ emailAddress: email, password, firstName: name.split(" ")[0] || undefined, lastName: name.split(" ").slice(1).join(" ") || undefined });
@@ -71,6 +73,12 @@ export default function SignUpScreen() {
             <Input label="Name (optional)" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words"/>
             <Input label="Email *" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none"/>
             <Input label="Password *" value={password} onChangeText={setPassword} placeholder="8+ characters" secureTextEntry hint="Minimum 8 characters"/>
+            <TouchableOpacity onPress={() => setAgeConfirmed(value => !value)} style={styles.confirmRow} accessibilityRole="checkbox" accessibilityState={{ checked:ageConfirmed }}>
+              <View style={[styles.checkbox, ageConfirmed && styles.checkboxChecked]}>{ageConfirmed ? <Text style={styles.checkmark}>✓</Text> : null}</View>
+              <PawText variant="caption" color={Colors.muted} style={{ flex:1, lineHeight:19 }}>
+                I confirm that I am at least 14 years old and agree to the Terms and Privacy Policy.
+              </PawText>
+            </TouchableOpacity>
             <Button onPress={handleRegister} loading={loading} fullWidth style={{ marginBottom: Spacing[4] }}>
               Create account
             </Button>
@@ -125,4 +133,8 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: { paddingHorizontal: Spacing[6] },
   legal: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: Spacing[6] },
+  confirmRow:{ flexDirection:"row", alignItems:"flex-start", gap:Spacing[3], marginBottom:Spacing[4] },
+  checkbox:{ width:24, height:24, borderWidth:1, borderColor:Colors.border2, borderRadius:5, alignItems:"center", justifyContent:"center", backgroundColor:Colors.surface2 },
+  checkboxChecked:{ backgroundColor:Colors.accent, borderColor:Colors.accent },
+  checkmark:{ color:Colors.bg, fontSize:16, fontWeight:"900" },
 });

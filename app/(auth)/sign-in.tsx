@@ -72,6 +72,7 @@ export default function SignInScreen() {
   const [oauthLoading, setOauthLoading] = useState<"google"|"apple"|null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showDemos, setShowDemos] = useState(false);
+  const [oauthAgeConfirmed, setOauthAgeConfirmed] = useState(false);
 
   const routeSignedInUser = async () => {
     // Clerk needs a moment to expose the newly active token to the API client.
@@ -177,6 +178,10 @@ export default function SignInScreen() {
   };
 
   const handleOAuth = async (provider: "google" | "apple") => {
+    if (!oauthAgeConfirmed) {
+      setError("Confirm that you are at least 14 and agree to the Terms and Privacy Policy before continuing with Google or Apple.");
+      return;
+    }
     setOauthLoading(provider);
     setError(null);
     try {
@@ -215,6 +220,13 @@ export default function SignInScreen() {
         <View style={styles.logoArea}>
           <PawPassWordmark height={36} showSubtext/>
         </View>
+
+        <TouchableOpacity onPress={() => setOauthAgeConfirmed(value => !value)} style={styles.confirmRow} accessibilityRole="checkbox" accessibilityState={{ checked:oauthAgeConfirmed }}>
+          <View style={[styles.checkbox, oauthAgeConfirmed && styles.checkboxChecked]}>{oauthAgeConfirmed ? <Text style={styles.checkmark}>✓</Text> : null}</View>
+          <PawText variant="caption" color={Colors.muted} style={{ flex:1, lineHeight:19 }}>
+            For Google or Apple: I confirm that I am at least 14 years old and agree to the Terms and Privacy Policy.
+          </PawText>
+        </TouchableOpacity>
 
         {/* OAuth buttons */}
         <View style={styles.oauthRow}>
@@ -370,6 +382,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   oauthText: { color: Colors.text, fontSize: 15, fontWeight: "600" },
+  confirmRow:{ flexDirection:"row", alignItems:"flex-start", gap:Spacing[3], marginBottom:Spacing[4] },
+  checkbox:{ width:24, height:24, borderWidth:1, borderColor:Colors.border2, borderRadius:5, alignItems:"center", justifyContent:"center", backgroundColor:Colors.surface2 },
+  checkboxChecked:{ backgroundColor:Colors.accent, borderColor:Colors.accent },
+  checkmark:{ color:Colors.bg, fontSize:16, fontWeight:"900" },
   divider: {
     flexDirection: "row", alignItems: "center",
     marginVertical: Spacing[5],

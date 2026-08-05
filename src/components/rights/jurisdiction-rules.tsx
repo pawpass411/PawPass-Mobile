@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Linking, Modal, ScrollView, TouchableOpacity, View } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
+import { router } from "expo-router";
 import { api, EffectiveRules } from "../../lib/api";
 import { COUNTRIES, CountryCode, REGIONS } from "../../lib/jurisdictions";
 import { Colors, Radius, Spacing } from "../../lib/theme";
@@ -166,6 +167,12 @@ export function JurisdictionRules() {
                 : "The national or federal baseline is shown."}
           </Alert>
 
+          {rules.jurisdictionReviewedAt ? (
+            <Alert variant="info" title="Jurisdiction review date">
+              This jurisdiction summary was last reviewed against its official sources on {new Date(`${rules.jurisdictionReviewedAt}T00:00:00`).toLocaleDateString()}.
+            </Alert>
+          ) : null}
+
           {rules.jurisdictionReviewStatus === "baseline_only" ? (
             <Alert variant="warn" title="Detailed jurisdiction review pending">
               PawPass has not yet completed a source-by-source review for this state, province, or territory. The national baseline and official sources are shown without guessing at local rights.
@@ -192,16 +199,16 @@ export function JurisdictionRules() {
             </Card>
           ))}
 
-          <Card>
-            <PawText variant="label" color={Colors.accent} style={{ marginBottom: Spacing[2] }}>QUESTIONS A BUSINESS MAY ASK</PawText>
+          {rules.allowedQuestions.length ? <Card>
+            <PawText variant="label" color={Colors.accent} style={{ marginBottom: Spacing[2] }}>QUESTIONS OR INFORMATION A BUSINESS MAY REQUEST</PawText>
             {rules.allowedQuestions.map((item, index) => (
               <PawText key={item.id ?? index} variant="body" color={Colors.muted} style={{ lineHeight: 22, marginBottom: 6 }}>
                 • {item.question}
               </PawText>
             ))}
-          </Card>
+          </Card> : null}
 
-          <Card>
+          {rules.prohibitedActions.length ? <Card>
             <PawText variant="label" color={Colors.danger} style={{ marginBottom: Spacing[2] }}>WHAT A BUSINESS MAY NOT DO</PawText>
             {rules.prohibitedActions.map((item, index) => (
               <View key={item.id ?? index} style={{ marginBottom: Spacing[2] }}>
@@ -209,6 +216,21 @@ export function JurisdictionRules() {
                 {item.citation ? <PawText variant="micro" color={Colors.dim}>{item.citation}</PawText> : null}
               </View>
             ))}
+          </Card> : null}
+
+          <Card style={{ borderColor: Colors.danger, borderWidth: 1 }}>
+            <PawText variant="label" color={Colors.danger} style={{ marginBottom: Spacing[2] }}>DOCUMENT AN ACCESS CONCERN</PawText>
+            <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22 }}>
+              Store the date, location and details in PawPass. This may affect the place's PawPass access rating, but it does not begin legal action, mediation, or direct follow-up by PawPass.
+            </PawText>
+            {rules.escalationGuidance?.map(step => (
+              <TouchableOpacity key={step.id} disabled={!step.url} onPress={() => step.url && Linking.openURL(step.url)} style={{ paddingTop: Spacing[3] }}>
+                <PawText variant="body" color={step.url ? Colors.info : Colors.muted}>{step.step}{step.url ? " →" : ""}</PawText>
+              </TouchableOpacity>
+            ))}
+            <View style={{ marginTop: Spacing[3] }}>
+              <Button onPress={() => router.push("/complaint/new")} fullWidth>Document an access concern</Button>
+            </View>
           </Card>
 
           {rules.citations?.length ? (

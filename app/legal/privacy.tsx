@@ -76,7 +76,7 @@ To exercise these rights, contact PawPass support.`,
   },
   {
     title: "7. Children's Privacy",
-    body: `PawPass is not directed at children under 13. We do not knowingly collect personal information from children under 13. If we learn we have collected such information, we will delete it promptly. Contact PawPass support if you believe we have inadvertently collected a child's information.`,
+    body: `PawPass accounts are for people age 14 or older. PawPass does not knowingly create accounts for children under 14. If PawPass learns that a younger child submitted personal information, a parent or guardian may use the contact form to request review and deletion.`,
   },
   {
     title: "8. Security",

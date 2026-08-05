@@ -1,8 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { EffectiveRules } from "./api";
 import { sditSourceUrl, US_SDIT_LAWS } from "./us-sdit-laws";
+import { bundledCanadianRules, CANADA_RIGHTS_REVIEWED_AT } from "./canadian-rights";
+import { bundledUkRules } from "./uk-rights";
 
-export const BUNDLED_RIGHTS_UPDATED_AT = "2026-08-03T00:00:00.000Z";
+export const BUNDLED_RIGHTS_UPDATED_AT = CANADA_RIGHTS_REVIEWED_AT;
 const CACHE_PREFIX = "pawpass:rights:v1:";
 
 export type StoredRules = { rules: EffectiveRules; updatedAt: string };
@@ -23,6 +25,14 @@ const sources = {
 } as const;
 
 export function bundledRules(country:"US"|"CA"|"GB", state?:string): EffectiveRules {
+  if (country === "CA") {
+    const canadian = bundledCanadianRules(state);
+    if (canadian) return canadian;
+  }
+  if (country === "GB") {
+    const uk = bundledUkRules(state);
+    if (uk) return uk;
+  }
   const isColorado = country === "US" && state === "CO";
   const isDistrictOfColumbia = country === "US" && state === "DC";
   const stateTrainerLaw = country === "US" && state ? US_SDIT_LAWS[state] : undefined;

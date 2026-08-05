@@ -550,6 +550,8 @@ export interface EffectiveRules {
   notes: string[];
   layers: string[];
   jurisdictionReviewStatus: "verified" | "partial" | "baseline_only";
+  jurisdictionReviewedAt?: string;
+  escalationGuidance?: { id: string; step: string; url?: string }[];
   rightsSections: {
     id: "public_access" | "in_training" | "housing" | "employment" | "air_travel" | "education";
     title: string;
