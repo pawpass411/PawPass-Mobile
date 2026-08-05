@@ -43,7 +43,7 @@ export default function HomeScreen() {
             onChangeText={setSearch}
             onSubmitEditing={runSearch}
             placeholder="Where would you like to go with your dog?"
-            placeholderTextColor={Colors.dim}
+            placeholderTextColor={Colors.muted}
             returnKeyType="search"
             style={styles.searchInput}
           />
@@ -147,6 +147,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontFamily: Typography.family,
     fontSize: Typography.base,
+    opacity: 1,
   },
   buttonRow: {
     flexDirection: "row",

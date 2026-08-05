@@ -181,11 +181,13 @@ export function JurisdictionRules() {
 
           {rules.rightsSections?.map(section => (
             <Card key={section.id}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", gap: Spacing[2], marginBottom: Spacing[2] }}>
-                <PawText variant="h3">{section.title}</PawText>
-                <PawText variant="micro" color={section.status === "verified" ? Colors.accent : section.status === "pending" ? Colors.warn : Colors.info}>
-                  {section.status === "verified" ? "VERIFIED" : section.status === "pending" ? "REVIEW PENDING" : "BASELINE"}
-                </PawText>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: Spacing[2], marginBottom: Spacing[2] }}>
+                <PawText variant="h3" style={{ flex: 1, flexShrink: 1 }}>{section.title}</PawText>
+                <View style={{ flexShrink: 0, alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 5, borderRadius: Radius.full, backgroundColor: section.status === "verified" ? Colors.accentDim : section.status === "pending" ? "rgba(252,211,77,0.14)" : Colors.infoDim }}>
+                  <PawText variant="micro" color={section.status === "verified" ? Colors.accent : section.status === "pending" ? Colors.warn : Colors.info} style={{ textAlign: "center" }}>
+                    {section.status === "verified" ? "VERIFIED" : section.status === "pending" ? "REVIEW PENDING" : "BASELINE"}
+                  </PawText>
+                </View>
               </View>
               <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22 }}>{section.summary}</PawText>
               {section.bullets.map((bullet, index) => (
