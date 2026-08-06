@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import NetInfo from "@react-native-community/netinfo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -12,6 +13,7 @@ import { api, ApiError, UserProfile } from "../../lib/api";
 import { listReviewOutbox, queueReview, ReviewOutboxDraft } from "../../lib/review-outbox";
 import { Colors, Radius, Spacing } from "../../lib/theme";
 import { track } from "../../lib/analytics";
+import { uploadReviewImages } from "../../lib/review-uploads";
 
 export type SelectedImage = { uri: string; name: string; mimeType: string };
 type ReviewTarget =
@@ -84,10 +86,19 @@ export async function chooseImages(max: number): Promise<SelectedImage[]> {
     quality: 0.82,
   });
   if (result.canceled) return [];
-  return result.assets.slice(0, max).map((asset, index) => ({
-    uri: asset.uri,
-    name: asset.fileName || `pawpass-${Date.now()}-${index}.jpg`,
-    mimeType: asset.mimeType || "image/jpeg",
+  return Promise.all(result.assets.slice(0, max).map(async (asset, index) => {
+    const resize = Math.max(asset.width ?? 0, asset.height ?? 0) > 1800
+      ? [{ resize: (asset.width ?? 0) >= (asset.height ?? 0) ? { width: 1800 } : { height: 1800 } }]
+      : [];
+    const prepared = await ImageManipulator.manipulateAsync(asset.uri, resize, {
+      compress: 0.76,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+    return {
+      uri: prepared.uri,
+      name: `${(asset.fileName || `pawpass-${Date.now()}-${index}`).replace(/\.[^.]+$/, "")}.jpg`,
+      mimeType: "image/jpeg",
+    };
   }));
 }
 
@@ -277,23 +288,6 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
       verificationPhotos,
       receiptPhotos,
     };
-    const form = new FormData();
-    if (target.kind === "business") form.append("businessLocationId", target.businessLocationId);
-    else form.append("parkId", target.parkId);
-    form.append("overallRating", String(overallRating));
-    if (accessRating) form.append("accessRating", String(accessRating));
-    form.append("tags", JSON.stringify([...petTag, ...tags]));
-    if (target.kind === "business" && isHandlerReview && accessIssue) form.append("accessIssueType", accessIssue);
-    form.append("body", body.trim());
-    appendImages(form, "images", publicPhotos);
-    appendImages(form, "verificationPhotos", verificationPhotos);
-    appendImages(form, "receiptProofs", receiptPhotos);
-    if (gps) {
-      form.append("gpsLat", String(gps.lat));
-      form.append("gpsLng", String(gps.lng));
-      form.append("gpsAccuracy", String(gps.accuracy));
-    }
-
     setSubmitting(true);
     try {
       const network = await NetInfo.fetch();
@@ -306,7 +300,19 @@ export function ReviewForm({ target, onSubmitted }: { target: ReviewTarget; onSu
         onSubmitted?.();
         return;
       }
-      await api.reviews.createForm(form);
+      const [imageUrls, verificationPhotoUrls, receiptProofUrls] = await Promise.all([
+        uploadReviewImages(publicPhotos, "public"),
+        uploadReviewImages(verificationPhotos, "verification"),
+        uploadReviewImages(receiptPhotos, "receipt"),
+      ]);
+      await api.reviews.create({
+        ...(target.kind === "business" ? { businessLocationId: target.businessLocationId } : { parkId: target.parkId }),
+        overallRating, accessRating: accessRating || undefined, tags: [...petTag, ...tags],
+        accessIssueType: target.kind === "business" && isHandlerReview && accessIssue ? accessIssue : undefined,
+        body: body.trim(), imageUrls, verificationPhotoUrls, receiptProofUrls,
+        proofTypes: [...(verificationPhotoUrls.length ? ["photo"] : []), ...(receiptProofUrls.length ? ["receipt"] : []), ...(gps ? ["gps"] : [])],
+        gpsLat: gps?.lat, gpsLng: gps?.lng, gpsAccuracy: gps?.accuracy,
+      });
       reviewFinished.current = true;
       void track({ eventName:"review_submitted", targetType:target.kind, targetId, success:true, metadata:{ photos:publicPhotos.length + verificationPhotos.length + receiptPhotos.length, hasGps:Boolean(gps) } });
       setSubmitted(true);

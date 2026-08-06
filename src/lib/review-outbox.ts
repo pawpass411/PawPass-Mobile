@@ -3,8 +3,9 @@ import NetInfo from "@react-native-community/netinfo";
 import * as FileSystem from "expo-file-system/legacy";
 import { ApiError, api } from "./api";
 import { track } from "./analytics";
+import { uploadReviewImages, ReviewUploadKind } from "./review-uploads";
 
-export type OutboxImage = { uri: string; name: string; mimeType: string };
+export type OutboxImage = { uri: string; name: string; mimeType: string; uploadedUrl?: string };
 export type OutboxTarget =
   | { kind: "business"; businessLocationId: string; placeName: string }
   | { kind: "park"; parkId: string; placeName: string };
@@ -128,6 +129,13 @@ async function updateItem(id: string, update: Partial<ReviewOutboxItem>) {
   await save((await listReviewOutbox()).map(item => item.id === id ? { ...item, ...update } : item));
 }
 
+async function uploadQueuedGroup(item: ReviewOutboxItem, field: "publicPhotos" | "verificationPhotos" | "receiptPhotos", kind: ReviewUploadKind) {
+  return uploadReviewImages(item[field], kind, async (index, uploadedUrl) => {
+    item[field] = item[field].map((image, imageIndex) => imageIndex === index ? { ...image, uploadedUrl } : image);
+    await updateItem(item.id, { [field]: item[field] });
+  });
+}
+
 async function runSync(onlyId?: string, ownerUserId?: string) {
   const network = await NetInfo.fetch();
   if (!network.isConnected || network.isInternetReachable === false) return;
@@ -137,7 +145,17 @@ async function runSync(onlyId?: string, ownerUserId?: string) {
     if (ownerUserId && item.ownerUserId !== ownerUserId) continue;
     await updateItem(item.id, { status: "uploading", attempts: item.attempts + 1, lastError: undefined });
     try {
-      await api.reviews.createForm(reviewOutboxForm(item));
+      const imageUrls = await uploadQueuedGroup(item, "publicPhotos", "public");
+      const verificationPhotoUrls = await uploadQueuedGroup(item, "verificationPhotos", "verification");
+      const receiptProofUrls = await uploadQueuedGroup(item, "receiptPhotos", "receipt");
+      await api.reviews.create({
+        ...(item.target.kind === "business" ? { businessLocationId: item.target.businessLocationId } : { parkId: item.target.parkId }),
+        overallRating: item.overallRating, accessRating: item.accessRating, tags: item.tags,
+        accessIssueType: item.accessIssueType, body: item.body,
+        imageUrls, verificationPhotoUrls, receiptProofUrls,
+        proofTypes: [...(verificationPhotoUrls.length ? ["photo"] : []), ...(receiptProofUrls.length ? ["receipt"] : []), ...(item.gps ? ["gps"] : [])],
+        gpsLat: item.gps?.lat, gpsLng: item.gps?.lng, gpsAccuracy: item.gps?.accuracy,
+      });
       void track({ eventName:"review_submitted", targetType:item.target.kind, targetId:item.target.kind === "business" ? item.target.businessLocationId : item.target.parkId, success:true, metadata:{ source:"offline_queue" } });
       await removeReviewOutboxItem(item.id);
     } catch (error) {

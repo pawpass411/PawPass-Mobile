@@ -1,7 +1,8 @@
 const mockStorage = new Map<string, string>();
 const mockCopyAsync = jest.fn(async (_options?: unknown) => {});
 const mockDeleteAsync = jest.fn(async (_path?: unknown, _options?: unknown) => {});
-const mockCreateForm = jest.fn(async (_form?: unknown) => ({ review: { id: "review-1" } }));
+const mockCreate = jest.fn(async (_data?: unknown) => ({ review: { id: "review-1" } }));
+const mockUpload = jest.fn(async (_form?: unknown) => ({ url: "https://assets.example/review-photo.jpg" }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   getItem: jest.fn(async (key: string) => mockStorage.get(key) ?? null),
@@ -21,7 +22,10 @@ jest.mock("expo-file-system/legacy", () => ({
 
 jest.mock("../api", () => ({
   ApiError: Error,
-  api: { reviews: { createForm: (form: unknown) => mockCreateForm(form) } },
+  api: {
+    reviews: { create: (data: unknown) => mockCreate(data) },
+    reviewUploads: { create: (form: unknown) => mockUpload(form) },
+  },
 }));
 
 // Mocks must be declared before this module is loaded.
@@ -44,7 +48,8 @@ beforeEach(() => {
   mockStorage.clear();
   mockCopyAsync.mockClear();
   mockDeleteAsync.mockClear();
-  mockCreateForm.mockClear();
+  mockCreate.mockClear();
+  mockUpload.mockClear();
 });
 
 test("keeps an offline review and its photo in durable storage", async () => {
@@ -61,7 +66,8 @@ test("uploads a queued review once and removes its saved files", async () => {
   await queueReview(draft);
   await syncReviewOutbox();
 
-  expect(mockCreateForm).toHaveBeenCalledTimes(1);
+  expect(mockUpload).toHaveBeenCalledTimes(1);
+  expect(mockCreate).toHaveBeenCalledTimes(1);
   expect(await listReviewOutbox()).toEqual([]);
   expect(mockDeleteAsync).toHaveBeenCalled();
 });

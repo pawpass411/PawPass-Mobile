@@ -223,7 +223,7 @@ export function JurisdictionRules() {
           <Card style={{ borderColor: Colors.danger, borderWidth: 1 }}>
             <PawText variant="label" color={Colors.danger} style={{ marginBottom: Spacing[2] }}>DOCUMENT AN ACCESS CONCERN</PawText>
             <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22 }}>
-              Store the date, location and details in PawPass. This may affect the place's PawPass access rating, but it does not begin legal action, mediation, or direct follow-up by PawPass.
+              Store the date, location and details in PawPass. This may affect the place&apos;s PawPass access rating, but it does not begin legal action, mediation, or direct follow-up by PawPass.
             </PawText>
             {rules.escalationGuidance?.map(step => (
               <TouchableOpacity key={step.id} disabled={!step.url} onPress={() => step.url && Linking.openURL(step.url)} style={{ paddingTop: Spacing[3] }}>

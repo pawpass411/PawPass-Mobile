@@ -199,13 +199,27 @@ export const api = {
       parkId?: string;
       overallRating: number;
       accessRating?: number;
+      tags?: string[];
+      accessIssueType?: string;
       body: string;
+      imageUrls?: string[];
+      verificationPhotoUrls?: string[];
+      receiptProofUrls?: string[];
+      proofTypes?: string[];
+      gpsLat?: number;
+      gpsLng?: number;
+      gpsAccuracy?: number;
     }) => request<{ review: Review }>("/reviews", { method: "POST", body: JSON.stringify(data) }),
 
     createForm: (form: FormData) =>
       request<{ review: Review }>("/reviews", { method: "POST", body: form }),
 
-    update: (id: string, data: { overallRating: number; accessRating?: number | null; body: string }) =>
+    update: (id: string, data: {
+      overallRating: number; accessRating?: number | null; body: string; tags?: string[];
+      accessIssueType?: string | null; retainedImageUrls?: string[]; retainedVerificationPhotoUrls?: string[];
+      retainedReceiptProofUrls?: string[]; newImageUrls?: string[]; newVerificationPhotoUrls?: string[];
+      newReceiptProofUrls?: string[]; gpsLat?: number; gpsLng?: number; gpsAccuracy?: number;
+    }) =>
       request<{ review: Review }>(`/reviews/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
     updateForm: (id: string, form: FormData) =>
@@ -219,6 +233,10 @@ export const api = {
       if (params?.page)       p.set("page", String(params.page));
       return request<{ reviews: Review[]; total: number }>(`/reviews?${p}`);
     },
+  },
+
+  reviewUploads: {
+    create: (form: FormData) => request<{ url: string }>("/review-uploads", { method: "POST", body: form }, { timeoutMs: 45_000 }),
   },
 
   complaints: {
@@ -553,7 +571,7 @@ export interface EffectiveRules {
   jurisdictionReviewedAt?: string;
   escalationGuidance?: { id: string; step: string; url?: string }[];
   rightsSections: {
-    id: "public_access" | "in_training" | "housing" | "employment" | "air_travel" | "education";
+    id: "public_access" | "in_training" | "housing" | "employment" | "air_travel" | "public_transit" | "education" | "federal_property" | "disaster_assistance" | "definitions";
     title: string;
     summary: string;
     bullets: string[];

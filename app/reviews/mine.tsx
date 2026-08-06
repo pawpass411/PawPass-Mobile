@@ -10,9 +10,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Alert, Button, Card, PawText, EmptyState, Input, StarRating } from "../../src/components/ui";
 import { api, Review } from "../../src/lib/api";
 import { Colors, Spacing } from "../../src/lib/theme";
-import { ACCESS_ISSUES, DOG_OWNER_TAGS, HANDLER_TAGS, PARK_TAGS, appendImages, chooseImages, SelectedImage } from "../../src/components/reviews/review-form";
+import { ACCESS_ISSUES, DOG_OWNER_TAGS, HANDLER_TAGS, PARK_TAGS, chooseImages, SelectedImage } from "../../src/components/reviews/review-form";
 import { listReviewOutbox, removeReviewOutboxItem, ReviewOutboxItem, subscribeReviewOutbox, syncReviewOutbox } from "../../src/lib/review-outbox";
 import { track } from "../../src/lib/analytics";
+import { uploadReviewImages } from "../../src/lib/review-uploads";
 
 export default function MyReviewsScreen() {
   const { userId } = useAuth();
@@ -59,20 +60,17 @@ export default function MyReviewsScreen() {
     setSaving(true);
     setEditError("");
     try {
-      const form = new FormData();
-      form.append("overallRating", String(editRating));
-      if (review.accessRating != null && editAccessRating != null) form.append("accessRating", String(editAccessRating));
-      form.append("body", editBody.trim());
-      form.append("tags", JSON.stringify(editTags));
-      form.append("accessIssueType", editAccessIssue);
-      form.append("retainedImageUrls", JSON.stringify(retainedImages));
-      form.append("retainedVerificationPhotoUrls", JSON.stringify(retainedVerification));
-      form.append("retainedReceiptProofUrls", JSON.stringify(retainedReceipts));
-      appendImages(form, "images", newImages);
-      appendImages(form, "verificationPhotos", newVerification);
-      appendImages(form, "receiptProofs", newReceipts);
-      if (editGps) { form.append("gpsLat", String(editGps.lat)); form.append("gpsLng", String(editGps.lng)); form.append("gpsAccuracy", String(editGps.accuracy)); }
-      const data = await api.reviews.updateForm(review.id, form);
+      const [newImageUrls, newVerificationPhotoUrls, newReceiptProofUrls] = await Promise.all([
+        uploadReviewImages(newImages, "public"), uploadReviewImages(newVerification, "verification"), uploadReviewImages(newReceipts, "receipt"),
+      ]);
+      const data = await api.reviews.update(review.id, {
+        overallRating: editRating,
+        accessRating: review.accessRating != null ? editAccessRating : undefined,
+        body: editBody.trim(), tags: editTags, accessIssueType: editAccessIssue || null,
+        retainedImageUrls: retainedImages, retainedVerificationPhotoUrls: retainedVerification,
+        retainedReceiptProofUrls: retainedReceipts, newImageUrls, newVerificationPhotoUrls, newReceiptProofUrls,
+        gpsLat: editGps?.lat, gpsLng: editGps?.lng, gpsAccuracy: editGps?.accuracy,
+      });
       void track({ eventName:"review_updated", path:"/reviews/mine", targetType:review.parkId ? "park" : "business", targetId:review.id, success:true, metadata:{ photos:newImages.length + newVerification.length + newReceipts.length, hasGps:Boolean(editGps) } });
       setReviews(current => current.map(item => item.id === review.id ? { ...item, ...data.review } : item));
       setEditingId(null);

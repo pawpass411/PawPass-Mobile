@@ -25,6 +25,14 @@ describe("bundled offline rights", () => {
     expect(training?.summary).toContain("disabled individual");
   });
 
+  it("keeps specialized federal rules available offline", () => {
+    const sections = bundledRules("US").rightsSections;
+    expect(sections.find(section => section.id === "public_transit")?.citations[0].ref).toContain("49 CFR 37.167");
+    expect(sections.find(section => section.id === "federal_property")?.summary).toContain("agency-specific");
+    expect(sections.find(section => section.id === "disaster_assistance")?.summary).toContain("not a general public-access rule");
+    expect(sections.find(section => section.id === "definitions")?.summary).toContain("miniature horses");
+  });
+
   it("reports a trainer-access law without overstating unverified conditions", () => {
     const rules = bundledRules("US", "WY");
     expect(rules.jurisdictionReviewStatus).toBe("partial");
