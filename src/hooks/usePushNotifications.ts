@@ -6,6 +6,9 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import { api } from "../lib/api";
+import { track } from "../lib/analytics";
+import { telemetryContext } from "../lib/telemetry-context";
 
 // Handle notifications while app is foregrounded
 Notifications.setNotificationHandler({
@@ -67,7 +70,7 @@ async function registerForPushNotifications(): Promise<string | null> {
   return token;
 }
 
-export function usePushNotifications(): PushState {
+export function usePushNotifications(enabled = true): PushState {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,20 +79,40 @@ export function usePushNotifications(): PushState {
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     registerForPushNotifications()
-      .then(token => setExpoPushToken(token))
+      .then(async token => {
+        setExpoPushToken(token);
+        if (!token) return;
+        await api.pushDevices.register({
+          expoPushToken: token,
+          platform: telemetryContext.platform,
+          appVersion: telemetryContext.appVersion,
+          deviceName: Device.deviceName ?? undefined,
+        });
+      })
       .catch(err => setError(err?.message ?? "Push registration failed"));
 
     // Foreground notification received
     notificationListener.current = Notifications.addNotificationReceivedListener(
-      notification => setNotification(notification)
+      notification => {
+        setNotification(notification);
+        void track({
+          eventName: "notification_received",
+          targetType: "notification",
+          targetId: String(notification.request.content.data?.notificationId ?? notification.request.identifier),
+        });
+      }
     );
 
     // User tapped a notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      _response => {
-        // Navigate based on notification data if needed
-        // const data = _response.notification.request.content.data;
+      response => {
+        void track({
+          eventName: "notification_opened",
+          targetType: "notification",
+          targetId: String(response.notification.request.content.data?.notificationId ?? response.notification.request.identifier),
+        });
       }
     );
 
@@ -97,7 +120,7 @@ export function usePushNotifications(): PushState {
       notificationListener.current?.remove();
       responseListener.current?.remove();
     };
-  }, []);
+  }, [enabled]);
 
   return { expoPushToken, notification, error };
 }

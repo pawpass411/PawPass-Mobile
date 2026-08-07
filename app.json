@@ -26,9 +26,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "PawPass uses your location to find nearby businesses, parks, events, and community-reviewed places.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "PawPass uses your location to find nearby businesses, parks, events, and community-reviewed places.",
-        "NSCameraUsageDescription": "PawPass uses your camera to add photos to reviews, access reports, business profiles, and verification submissions.",
         "NSPhotoLibraryUsageDescription": "PawPass accesses your photo library to attach photos to reviews, access reports, business profiles, and verification submissions.",
-        "NSMicrophoneUsageDescription": "PawPass may use your microphone for video evidence recording.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "clerk",
@@ -60,7 +58,8 @@
     },
     "android": {
       "package": "com.stodghillconsulting.pawpass",
-      "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon/foreground.png",
         "backgroundImage": "./assets/adaptive-icon/background.png",
@@ -69,14 +68,9 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.ACCESS_NETWORK_STATE"
       ],
-      "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -109,6 +103,8 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics",
       "expo-secure-store",
       [
         "expo-location",
@@ -120,7 +116,8 @@
         "expo-image-picker",
         {
           "photosPermission": "PawPass accesses your photos to attach images to reviews, reports, business profiles, and verification submissions.",
-          "cameraPermission": "PawPass uses your camera to take photos for reviews, reports, business profiles, and verification submissions."
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       [

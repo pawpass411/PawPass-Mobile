@@ -1,11 +1,11 @@
 // app/(tabs)/profile.tsx
 // Profile tab — user info, settings, legal links, sign out
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  View, ScrollView, TouchableOpacity, Text, StyleSheet, Alert, Linking, Image,
+  ActivityIndicator, View, ScrollView, TouchableOpacity, Text, StyleSheet, Alert, Linking, Image,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Badge, Button, PawText, Divider } from "../../src/components/ui";
@@ -56,6 +56,12 @@ export default function ProfileScreen() {
       .catch(() => {});
   }, [isLoaded, isSignedIn]);
 
+  useFocusEffect(useCallback(() => {
+    if (isLoaded && isSignedIn) {
+      api.users.me().then(d => setProfile(d.user)).catch(() => {});
+    }
+  }, [isLoaded, isSignedIn]));
+
   const handleSignOut = () => {
     Alert.alert(
       "Sign Out",
@@ -75,13 +81,22 @@ export default function ProfileScreen() {
   };
 
   const displayName =
+    profile?.name ??
     clerkUser?.fullName ??
     clerkUser?.firstName ??
-    profile?.name ??
     "Your Account";
   const email = profile?.email ?? clerkUser?.primaryEmailAddress?.emailAddress ?? "";
 
-  if (isLoaded && !isSignedIn) {
+  if (!isLoaded) {
+    return (
+      <View style={styles.accountLoading}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+        <PawText variant="body" color={Colors.muted}>Checking your PawPass account...</PawText>
+      </View>
+    );
+  }
+
+  if (!isSignedIn) {
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: Colors.bg }}
@@ -115,9 +130,9 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.avatar}>
-          {clerkUser?.imageUrl ? (
+          {profile?.avatarUrl || clerkUser?.imageUrl ? (
             <Image
-              source={{ uri: clerkUser.imageUrl }}
+              source={{ uri: profile?.avatarUrl || clerkUser?.imageUrl }}
               style={styles.avatarImage}
               accessibilityLabel={`${displayName}'s profile picture`}
             />
@@ -178,6 +193,8 @@ export default function ProfileScreen() {
       {/* Account */}
       <SectionHeader label="ACCOUNT"/>
       <View style={styles.menuSection}>
+        <MenuRow icon="" label="Edit Profile" onPress={() => router.push("/settings/edit-profile")}/>
+        <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
         <MenuRow icon="" label="My Reviews" onPress={() => router.push("/reviews/mine")}/>
         <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
         <MenuRow icon="" label="My Reports" onPress={() => router.push("/reports/mine")}/>
@@ -188,15 +205,15 @@ export default function ProfileScreen() {
       {/* Settings */}
       <SectionHeader label="SETTINGS"/>
       <View style={styles.menuSection}>
-        <MenuRow icon="" label="Notifications" onPress={() => router.push("/settings/notifications")}/>
+        <MenuRow icon="" label="PawPass Notices" onPress={() => router.push("/notifications")}/>
         <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
         <MenuRow icon="" label="Location" onPress={() => router.push("/settings/location")}/>
         <Divider style={{ marginLeft: Spacing[4] + 30 }}/>
         <MenuRow
           icon=""
-          label="Handler Status"
+          label="Account Type"
           onPress={() => router.push("/settings/handler")}
-          value={profile?.isHandler ? "Handler" : "Community"}
+          value={profile?.role === "TRAINER" && profile?.isHandler ? "Handler & Trainer" : profile?.role === "TRAINER" ? "Trainer" : profile?.isHandler ? "Handler" : "Dog Owner"}
         />
       </View>
 
@@ -297,5 +314,13 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: Radius.md,
     backgroundColor: Colors.accent,
+  },
+  accountLoading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing[3],
+    padding: Spacing[6],
+    backgroundColor: Colors.bg,
   },
 });

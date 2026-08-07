@@ -10,6 +10,7 @@ import { Card, Badge, Alert, PawText, StarRating, Input, Button } from "../../sr
 import { ReviewForm } from "../../src/components/reviews/review-form";
 import { api, ParkDetail } from "../../src/lib/api";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
+import { track } from "../../src/lib/analytics";
 
 const AMENITY_META: Record<string, { label: string; icon: string }> = {
   water:          { label: "Water",          icon: "" },
@@ -45,7 +46,7 @@ export default function ParkDetailScreen() {
   useEffect(() => {
     if (!id) return;
     api.parks.get(id)
-      .then(d => setPark(d.park))
+      .then(d => { setPark(d.park); void track({ eventName:"profile_viewed", path:`/park/${id}`, targetType:"park", targetId:id }); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);

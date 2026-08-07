@@ -9,15 +9,21 @@ import {
 import { useSignIn, useOAuth } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Input, Alert, PawText } from "../../src/components/ui";
 import { PawPassWordmark } from "../../src/components/ui/Logo";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
+import { api } from "../../src/lib/api";
+import { track } from "../../src/lib/analytics";
 
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
 
-const OAUTH_REDIRECT_URL = "clerk://com.stodghillconsulting.pawpass.callback";
+const OAUTH_REDIRECT_URL = AuthSession.makeRedirectUri({
+  scheme: "pawpass",
+  path: "oauth-native-callback",
+});
 
 // ─── REVIEWER DEMO ACCOUNTS ───────────────────────────
 // These accounts are seeded in the DB and provided to Apple/Google reviewers
@@ -66,6 +72,20 @@ export default function SignInScreen() {
   const [oauthLoading, setOauthLoading] = useState<"google"|"apple"|null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showDemos, setShowDemos] = useState(false);
+  const [oauthAgeConfirmed, setOauthAgeConfirmed] = useState(false);
+
+  const routeSignedInUser = async () => {
+    // Clerk needs a moment to expose the newly active token to the API client.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (attempt) await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+      try {
+        const { user } = await api.users.me();
+        router.replace(["BUSINESS","STAFF","ADMIN","SUPERADMIN"].includes(user.role) ? "/business/dashboard" : "/(tabs)");
+        return;
+      } catch {}
+    }
+    router.replace("/(tabs)");
+  };
 
   const handleSignIn = async () => {
     if (!isLoaded) return;
@@ -75,22 +95,27 @@ export default function SignInScreen() {
       const result = await signIn.create({ identifier: email, password });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.replace("/(tabs)");
+        void track({ eventName:"sign_in_succeeded", path:"/sign-in", success:true, metadata:{ method:"password" } });
+        await routeSignedInUser();
         return;
       }
 
       const resultStatus = result.status as string | null;
       if (resultStatus === "needs_client_trust" || resultStatus === "needs_second_factor") {
-        const emailFactor = result.supportedSecondFactors?.find(
+        const resultWithEmailFactor = result as unknown as {
+          supportedSecondFactors?: { strategy: string; emailAddressId?: string }[];
+          prepareSecondFactor: (params: { strategy: "email_code"; emailAddressId: string }) => Promise<unknown>;
+        };
+        const emailFactor = resultWithEmailFactor.supportedSecondFactors?.find(
           factor => factor.strategy === "email_code",
         );
 
-        if (!emailFactor || !("emailAddressId" in emailFactor)) {
+        if (!emailFactor?.emailAddressId) {
           setError("This account requires a verification method that is not available in the app.");
           return;
         }
 
-        await result.prepareSecondFactor({
+        await resultWithEmailFactor.prepareSecondFactor({
           strategy: "email_code",
           emailAddressId: emailFactor.emailAddressId,
         });
@@ -100,6 +125,7 @@ export default function SignInScreen() {
 
       setError("Sign-in needs another step. Please try again or use Google sign-in.");
     } catch (err: any) {
+      void track({ eventName:"sign_in_failed", path:"/sign-in", success:false, errorCode:"password_failed", metadata:{ method:"password" } });
       setError(err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? "Sign in failed. Check your email and password.");
     } finally { setLoading(false); }
   };
@@ -109,17 +135,23 @@ export default function SignInScreen() {
     setLoading(true);
     setError(null);
     try {
-      const result = await signIn.attemptSecondFactor({
+      const attemptEmailFactor = signIn!.attemptSecondFactor as unknown as (params: {
+        strategy: "email_code";
+        code: string;
+      }) => Promise<{ status: string; createdSessionId: string | null }>;
+      const result = await attemptEmailFactor({
         strategy: "email_code",
         code: verificationCode.trim(),
       });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.replace("/(tabs)");
+        void track({ eventName:"sign_in_succeeded", path:"/sign-in", success:true, metadata:{ method:"email_code" } });
+        await routeSignedInUser();
         return;
       }
       setError("That verification code was not accepted. Please try again.");
     } catch (err: any) {
+      void track({ eventName:"sign_in_failed", path:"/sign-in", success:false, errorCode:"verification_failed", metadata:{ method:"email_code" } });
       setError(err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? "Verification failed. Please try again.");
     } finally {
       setLoading(false);
@@ -138,7 +170,7 @@ export default function SignInScreen() {
       });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.replace("/(tabs)");
+        await routeSignedInUser();
       }
     } catch {
       setError("Demo account unavailable. Contact PawPass support.");
@@ -146,6 +178,10 @@ export default function SignInScreen() {
   };
 
   const handleOAuth = async (provider: "google" | "apple") => {
+    if (!oauthAgeConfirmed) {
+      setError("Confirm that you are at least 14 and agree to the Terms and Privacy Policy before continuing with Google or Apple.");
+      return;
+    }
     setOauthLoading(provider);
     setError(null);
     try {
@@ -155,9 +191,11 @@ export default function SignInScreen() {
       });
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
-        router.replace("/(tabs)");
+        void track({ eventName:"sign_in_succeeded", path:"/sign-in", success:true, metadata:{ method:provider } });
+        await routeSignedInUser();
       }
     } catch (err: any) {
+      void track({ eventName:"sign_in_failed", path:"/sign-in", success:false, errorCode:`${provider}_failed`, metadata:{ method:provider } });
       setError(
         err?.errors?.[0]?.longMessage ??
         err?.errors?.[0]?.message ??
@@ -182,6 +220,13 @@ export default function SignInScreen() {
         <View style={styles.logoArea}>
           <PawPassWordmark height={36} showSubtext/>
         </View>
+
+        <TouchableOpacity onPress={() => setOauthAgeConfirmed(value => !value)} style={styles.confirmRow} accessibilityRole="checkbox" accessibilityState={{ checked:oauthAgeConfirmed }}>
+          <View style={[styles.checkbox, oauthAgeConfirmed && styles.checkboxChecked]}>{oauthAgeConfirmed ? <Text style={styles.checkmark}>✓</Text> : null}</View>
+          <PawText variant="caption" color={Colors.muted} style={{ flex:1, lineHeight:19 }}>
+            For Google or Apple: I confirm that I am at least 14 years old and agree to the Terms and Privacy Policy.
+          </PawText>
+        </TouchableOpacity>
 
         {/* OAuth buttons */}
         <View style={styles.oauthRow}>
@@ -337,6 +382,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   oauthText: { color: Colors.text, fontSize: 15, fontWeight: "600" },
+  confirmRow:{ flexDirection:"row", alignItems:"flex-start", gap:Spacing[3], marginBottom:Spacing[4] },
+  checkbox:{ width:24, height:24, borderWidth:1, borderColor:Colors.border2, borderRadius:5, alignItems:"center", justifyContent:"center", backgroundColor:Colors.surface2 },
+  checkboxChecked:{ backgroundColor:Colors.accent, borderColor:Colors.accent },
+  checkmark:{ color:Colors.bg, fontSize:16, fontWeight:"900" },
   divider: {
     flexDirection: "row", alignItems: "center",
     marginVertical: Spacing[5],

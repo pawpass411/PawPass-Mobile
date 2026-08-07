@@ -1,15 +1,27 @@
 import { Linking, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { useClerk } from "@clerk/clerk-expo";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Card, PawText } from "../../src/components/ui";
 import { PawPassWordmark } from "../../src/components/ui/Logo";
 import { Colors, Radius, Spacing } from "../../src/lib/theme";
+import { api } from "../../src/lib/api";
 
 const WEB_BUSINESS_PORTAL = "https://pawpass411.com/business/dashboard";
 const WEB_CLAIM = "https://pawpass411.com/business/claim";
 
 export default function BusinessDashboardBridge() {
+  const { signOut } = useClerk();
   const insets = useSafeAreaInsets();
+  const [role,setRole] = useState("BUSINESS");
+  useEffect(() => { api.users.me().then(({user}) => setRole(user.role)).catch(() => {}); },[]);
+  const portal = role === "ADMIN" || role === "SUPERADMIN" ? "https://pawpass411.com/admin" : role === "STAFF" ? "https://pawpass411.com/employee/dashboard" : WEB_BUSINESS_PORTAL;
+  const label = role === "ADMIN" || role === "SUPERADMIN" ? "Admin" : role === "STAFF" ? "Employee" : "Business";
+  const useDifferentAccount = async () => {
+    await signOut();
+    router.replace("/(auth)/sign-in");
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + Spacing[6], paddingBottom: insets.bottom + Spacing[6] }]}>
@@ -18,22 +30,20 @@ export default function BusinessDashboardBridge() {
           <PawPassWordmark height={34} showText />
         </View>
         <PawText variant="label" color={Colors.info} style={{ textAlign: "center" }}>
-          BUSINESS PORTAL
+          WEB PORTAL
         </PawText>
         <PawText variant="h2" style={{ textAlign: "center", marginTop: Spacing[2] }}>
-          Business tools are desktop only.
+          {label} account detected
         </PawText>
         <PawText variant="body" color={Colors.muted} style={styles.body}>
-          Claims, billing, staff training, verification, corrective action, and business settings are managed from the PawPass web portal.
+          This account type is managed on the PawPass website. The mobile app is for dog owners, service-dog handlers, and service-dog trainers.
         </PawText>
-        <Button onPress={() => Linking.openURL(WEB_BUSINESS_PORTAL)} fullWidth>
-          Open business portal
+        <Button onPress={() => Linking.openURL(portal)} fullWidth>
+          Open {label.toLowerCase()} portal
         </Button>
-        <Button onPress={() => Linking.openURL(WEB_CLAIM)} variant="secondary" fullWidth style={{ marginTop: Spacing[3] }}>
-          Claim a business
-        </Button>
-        <Button onPress={() => router.replace("/(tabs)/profile")} variant="ghost" fullWidth style={{ marginTop: Spacing[2] }}>
-          Back to profile
+        {role === "BUSINESS" ? <Button onPress={() => Linking.openURL(WEB_CLAIM)} variant="secondary" fullWidth style={{ marginTop: Spacing[3] }}>Claim a business</Button> : null}
+        <Button onPress={useDifferentAccount} variant="outline" fullWidth style={{ marginTop: Spacing[3] }}>
+          Use a different account
         </Button>
       </Card>
     </View>

@@ -1,8 +1,11 @@
-import { Tabs } from "expo-router";
+import { Tabs, router } from "expo-router";
+import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/clerk-expo";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../../src/lib/theme";
+import { api } from "../../src/lib/api";
 
 function TabIcon({
   focused,
@@ -13,13 +16,26 @@ function TabIcon({
 }) {
   return (
     <View style={{ alignItems: "center", justifyContent: "center", paddingTop: 4 }}>
-      <Ionicons name={name} size={24} color={focused ? Colors.accent : Colors.muted} />
+      <Ionicons name={name} size={24} color={focused ? Colors.info : Colors.muted} />
     </View>
   );
 }
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { isLoaded, isSignedIn } = useAuth();
+  const [roleChecked,setRoleChecked] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) { setRoleChecked(true); return; }
+    api.users.me().then(({user}) => {
+      if (["BUSINESS","STAFF","ADMIN","SUPERADMIN"].includes(user.role)) router.replace("/business/dashboard");
+      else setRoleChecked(true);
+    }).catch(() => setRoleChecked(true));
+  },[isLoaded,isSignedIn]);
+
+  if (!isLoaded || (isSignedIn && !roleChecked)) return null;
 
   return (
     <Tabs
@@ -36,7 +52,7 @@ export default function TabLayout() {
           fontSize: 11,
           fontWeight: "700",
         },
-        tabBarActiveTintColor: Colors.accent,
+        tabBarActiveTintColor: Colors.info,
         tabBarInactiveTintColor: Colors.muted,
         headerStyle: { backgroundColor: Colors.surface },
         headerTintColor: Colors.accent,
@@ -67,40 +83,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="report"
-        options={{
-          title: "Report",
-          tabBarIcon: ({ focused }) => (
-            <View
-              style={{
-                width: 50,
-                height: 50,
-                borderRadius: 25,
-                backgroundColor: Colors.info,
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 20,
-                borderWidth: 2,
-                borderColor: focused ? Colors.accent : Colors.infoBorder,
-                shadowColor: Colors.info,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.28,
-                shadowRadius: 8,
-                elevation: 8,
-              }}
-            >
-              <Ionicons name="alert-circle" size={25} color={Colors.white} />
-            </View>
-          ),
-          href: "/complaint/new",
-        }}
-      />
-      <Tabs.Screen
         name="learn"
         options={{
-          title: "Learn",
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="book" />,
-          href: null,
+          title: "Rights",
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} name="shield-checkmark" />,
         }}
       />
       <Tabs.Screen

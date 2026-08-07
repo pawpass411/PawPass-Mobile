@@ -9,9 +9,13 @@ import { Card, Alert, PawText, Divider } from "../../src/components/ui";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { JurisdictionRules } from "../../src/components/rights/jurisdiction-rules";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
+import { api, UserProfile } from "../../src/lib/api";
+import { useAuth } from "@clerk/clerk-expo";
 
-const TABS = ["FAQ", "Scripts", "Your Rights"] as const;
-type Tab = typeof TABS[number];
+// Rights guidance must be selected by jurisdiction. The former general FAQ and
+// scripts were U.S.-specific and could mislead Canadian and UK users.
+const TABS = ["Your Rights"] as const;
+type Tab = "FAQ" | "Scripts" | "Your Rights";
 
 const FAQ = [
   { q: "What qualifies as a service animal?", a: "A dog individually trained to perform work or tasks related to a person's disability. The key word is trained — the dog must do a specific job. Emotional support animals and comfort dogs do not qualify under ADA Title III." },
@@ -79,13 +83,59 @@ function FAQItem({ item }: { item: typeof FAQ[0] }) {
 }
 
 export default function LearnScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tab?: string }>();
-  const [activeTab, setActiveTab] = useState<Tab>("FAQ");
+  const [activeTab, setActiveTab] = useState<Tab>("Your Rights");
+  const [profile, setProfile] = useState<UserProfile|null>(null);
+  const [profileReady, setProfileReady] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) { setProfile(null); setProfileReady(true); return; }
+    api.users.me().then(({user}) => setProfile(user)).catch(() => setProfile(null)).finally(() => setProfileReady(true));
+  }, [isLoaded,isSignedIn]);
 
   useEffect(() => {
     if (params.tab === "rights") setActiveTab("Your Rights");
   }, [params.tab]);
+
+  const hasFullRights = Boolean(profile && (
+    profile.isHandler || ["HANDLER","TRAINER"].includes(profile.role)
+  ));
+
+  if (!profileReady) return <View style={{flex:1,backgroundColor:Colors.bg,alignItems:"center",justifyContent:"center"}}><PawText variant="body" color={Colors.muted}>Loading guidance…</PawText></View>;
+
+  if (profileReady && !hasFullRights) return (
+    <View style={{flex:1,backgroundColor:Colors.bg}}>
+      <View style={[styles.header,{paddingTop:insets.top+8}]}><MobileTopBar active="rights"/><PawText variant="h2">Park & Dog Guidance</PawText><PawText variant="caption" color={Colors.dim}>Public information for everyday outings</PawText></View>
+      <ScrollView contentContainerStyle={[styles.scroll,{paddingBottom:insets.bottom+80,gap:Spacing[3]}]}>
+        <Alert variant="info" title="Rules depend on the location">Pet-dog access, leash requirements, and park rules can vary by property, city, county, and state. PawPass only presents a local rule when its source has been verified.</Alert>
+        <Card><PawText variant="h3">Check the specific place</PawText><PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>Use a PawPass park or business profile for posted leash rules, dog-friendly access, amenities, hours, and community experiences. Always follow posted signs.</PawText></Card>
+        {!isSignedIn ? (
+          <Card style={styles.rightsAccessCard}>
+            <PawText variant="h3">Unlock service-dog rights</PawText>
+            <PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>
+              Create a free account and choose Service Dog Handler, Service Dog Trainer, or both to access available federal, state, provincial, and local service-dog guidance.
+            </PawText>
+            <Alert variant="info" title="Why PawPass asks" style={{marginTop:Spacing[3]}}>
+              Your account type keeps service-dog rights and handler-level review tools separate from general dog-owner features.
+            </Alert>
+            <TouchableOpacity onPress={() => router.push("/(auth)/sign-up")} style={[styles.communityButton,{marginTop:Spacing[3]}]}>
+              <PawText variant="body" weight="bold" color={Colors.bg}>Create a free account</PawText>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/(auth)/sign-in")} style={[styles.communityButton,styles.signInButton]}>
+              <PawText variant="body" weight="bold" color={Colors.info}>Sign in</PawText>
+            </TouchableOpacity>
+          </Card>
+        ) : (
+          <Card><PawText variant="h3">Service dogs are different</PawText><PawText variant="body" color={Colors.muted} style={{lineHeight:22,marginTop:Spacing[2]}}>Pet-dog permission does not determine service-dog access. The complete jurisdiction rights view is reserved for Service Dog Handler and Service Dog Trainer accounts.</PawText></Card>
+        )}
+        <TouchableOpacity onPress={() => router.push("/(tabs)/parks")} style={styles.communityButton}><PawText variant="body" weight="bold" color={Colors.bg}>Browse parks</PawText></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/discover")} style={[styles.communityButton,{backgroundColor:Colors.info}]}><PawText variant="body" weight="bold" color={Colors.bg}>Find dog-friendly places</PawText></TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
@@ -94,7 +144,7 @@ export default function LearnScreen() {
         <MobileTopBar active="rights" />
         <PawText variant="h2">Know Your Rights</PawText>
         <PawText variant="caption" color={Colors.dim} style={{ marginTop: 2 }}>
-          ADA service animal education
+          Location-specific service animal education
         </PawText>
       </View>
 
@@ -116,7 +166,7 @@ export default function LearnScreen() {
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 80 }]}>
 
         <Alert variant="warn" title="Educational content only" style={{ marginBottom: Spacing[4] }}>
-          This information is educational and general in nature. It is not legal advice. For specific legal questions, consult a qualified attorney or your state’s disability rights organization.
+          This information is educational and general in nature. It is not legal advice. For a specific situation, consult the official source shown, the applicable human-rights authority, or a qualified lawyer in that jurisdiction.
         </Alert>
 
         {/* FAQ */}
@@ -151,40 +201,6 @@ export default function LearnScreen() {
         {activeTab === "Your Rights" && (
           <View style={{ gap: Spacing[3] }}>
             <JurisdictionRules />
-            {RIGHTS.map((r, i) => (
-              <Card key={i}>
-                <View style={{ flexDirection: "row", gap: Spacing[3], alignItems: "flex-start" }}>
-                  <Text style={{ fontSize: 20, color: Colors.accent, fontWeight: "900", marginTop: 1 }}>{r.icon}</Text>
-                  <View style={{ flex: 1 }}>
-                    <PawText variant="body" weight="bold" style={{ marginBottom: 6 }}>{r.title}</PawText>
-                    <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22 }}>{r.body}</PawText>
-                  </View>
-                </View>
-              </Card>
-            ))}
-            <Card style={{ borderColor: Colors.danger, borderWidth: 1 }}>
-              <PawText variant="label" color={Colors.danger} style={{ marginBottom: Spacing[2] }}>IF YOUR RIGHTS ARE VIOLATED</PawText>
-              <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22, marginBottom: Spacing[3] }}>
-                Document the incident immediately: date, time, location, what was said, who said it. Then:
-              </PawText>
-              {[
-                "Document your access concern on PawPass. Submit and securely store the details of what happened. Your report may affect the business's PawPass access rating, but submitting it does not begin legal action, mediation, or direct follow-up by PawPass.",
-                "Contact the DOJ ADA Information Line: 1-800-514-0301",
-                "Contact your state's disability rights organization",
-                "Consult a disability rights attorney",
-              ].map((s, i) => (
-                <View key={i} style={{ flexDirection: "row", gap: Spacing[2], marginBottom: 6 }}>
-                  <Text style={{ color: Colors.danger, fontWeight: "700" }}>{i + 1}.</Text>
-                  <PawText variant="body" color={Colors.muted}>{s}</PawText>
-                </View>
-              ))}
-              <TouchableOpacity
-                onPress={() => router.push("/complaint/new")}
-                style={{ marginTop: Spacing[3], padding: Spacing[3], backgroundColor: "rgba(239,68,68,0.1)", borderRadius: Radius.md, alignItems: "center" }}
-              >
-                <PawText variant="body" color={Colors.danger} weight="bold">Report an access concern →</PawText>
-              </TouchableOpacity>
-            </Card>
           </View>
         )}
       </ScrollView>
@@ -193,6 +209,9 @@ export default function LearnScreen() {
 }
 
 const styles = StyleSheet.create({
+  communityButton:{minHeight:50,borderRadius:Radius.md,backgroundColor:Colors.accent,alignItems:"center",justifyContent:"center",paddingHorizontal:Spacing[4]},
+  rightsAccessCard:{borderColor:Colors.info,borderWidth:1},
+  signInButton:{marginTop:Spacing[2],backgroundColor:Colors.transparent,borderWidth:1,borderColor:Colors.info},
   header: {
     paddingHorizontal: Spacing[4], paddingBottom: Spacing[3],
     backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border,

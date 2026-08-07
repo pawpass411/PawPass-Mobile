@@ -17,9 +17,9 @@ Location data: With your permission, approximate location to show nearby busines
 
 User-generated content: Reviews, access concern reports, incident log entries, and ratings you create.
 
-Usage data: Pages viewed, searches performed, and features used — aggregated and anonymized.
+Usage data: App opens, sign-in success or failure, searches and result counts, listing views, review-flow progress, notification interactions, and features used. PawPass does not put review text, report text, medical details, uploaded files, or precise location history into analytics events.
 
-Device information: Device type, operating system version, and app version for compatibility and support purposes.`,
+Device and diagnostics information: Device type, operating system version, app version, response times, privacy-limited error codes, crash traces, and technical breadcrumbs for compatibility, reliability, and support. Android crash diagnostics may be processed by Firebase Crashlytics.`,
   },
   {
     title: "2. How We Use Your Information",
@@ -48,6 +48,8 @@ Content you submit may be moderated for compliance with our community guidelines
 
 Service providers: Clerk (authentication), Stripe (payments), AWS (storage), Resend (email). These providers process data on our behalf under data processing agreements.
 
+Diagnostics providers: Firebase Crashlytics may process mobile crash and reliability information so PawPass can identify startup failures, crashes, and affected app versions.
+
 Business users: When you submit an access concern report about a business, that business receives a notification and a summary of the concern. Your contact information is not shared unless you choose the "email" contact preference.
 
 Legal requirements: We may disclose information when required by law or to protect the rights and safety of our users.`,
@@ -58,7 +60,7 @@ Legal requirements: We may disclose information when required by law or to prote
 
 Reviews and reports that are part of an active investigation or dispute resolution process may be retained for up to 24 months after resolution.
 
-Aggregated, anonymized analytics data may be retained indefinitely.`,
+Raw product analytics and diagnostics are retained only as long as reasonably needed for trend analysis, troubleshooting, security, and improvement. Aggregated, de-identified statistics may be retained longer.`,
   },
   {
     title: "6. Your Rights",
@@ -74,7 +76,7 @@ To exercise these rights, contact PawPass support.`,
   },
   {
     title: "7. Children's Privacy",
-    body: `PawPass is not directed at children under 13. We do not knowingly collect personal information from children under 13. If we learn we have collected such information, we will delete it promptly. Contact PawPass support if you believe we have inadvertently collected a child's information.`,
+    body: `PawPass accounts are for people age 14 or older. PawPass does not knowingly create accounts for children under 14. If PawPass learns that a younger child submitted personal information, a parent or guardian may use the contact form to request review and deletion.`,
   },
   {
     title: "8. Security",
@@ -82,7 +84,7 @@ To exercise these rights, contact PawPass support.`,
   },
   {
     title: "9. Contact",
-    body: `For privacy questions or requests, use Contact Us in the PawPass app. Choose “Privacy - Request” so your message is routed correctly.\n\nPawPass is operated by Stodghill Consulting LLC.\n\nThis policy is effective as of June 15, 2026.`,
+    body: `For privacy questions or requests, use Contact Us in the PawPass app. Choose “Privacy - Request” so your message is routed correctly.\n\nPawPass is operated by Stodghill Consulting LLC.\n\nThis policy is effective as of August 4, 2026.`,
   },
 ];
 
@@ -95,7 +97,7 @@ export default function PrivacyPolicyScreen() {
     >
       <PawText variant="h1" style={{ marginBottom: 4 }}>Privacy Policy</PawText>
       <PawText variant="caption" color={Colors.dim} style={{ marginBottom: Spacing[6] }}>
-        Stodghill Consulting LLC - Effective June 15, 2026
+        Stodghill Consulting LLC - Effective August 4, 2026
       </PawText>
 
       <PawText variant="body" color={Colors.muted} style={{ marginBottom: Spacing[6], lineHeight: 22 }}>

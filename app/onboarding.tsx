@@ -1,5 +1,5 @@
 // app/onboarding.tsx
-// Post sign-up onboarding - handler or dog owner setup
+// Post sign-up onboarding - handler, trainer, or dog owner setup
 import { useState } from "react";
 import { View, ScrollView, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
@@ -10,19 +10,35 @@ import { api } from "../src/lib/api";
 import { Colors, Spacing, Radius } from "../src/lib/theme";
 
 const STEPS = 3;
+type AccountUse = "handler" | "trainer" | "handler_trainer" | "community";
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
-  const [isHandler, setIsHandler] = useState<boolean | null>(null);
+  const [accountUse, setAccountUse] = useState<AccountUse | null>(null);
   const [agreed, setAgreed] = useState(false);
+  const [handlerAttested, setHandlerAttested] = useState(false);
+  const [trainerAttested, setTrainerAttested] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const finish = async () => {
+    if (!accountUse) return;
     setSaving(true);
-    await api.users.update({ isHandler: isHandler ?? false }).catch(() => {});
-    setSaving(false);
-    router.replace("/(tabs)");
+    setError("");
+    try {
+      await api.users.update({
+        accountUse,
+        isHandler: accountUse === "handler" || accountUse === "handler_trainer" ? true : accountUse === "community" ? false : undefined,
+        handlerAttestationAccepted: accountUse === "handler" || accountUse === "handler_trainer" ? handlerAttested : undefined,
+        trainerAttestationAccepted: accountUse === "trainer" || accountUse === "handler_trainer" ? trainerAttested : undefined,
+      });
+      router.replace("/(tabs)");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "PawPass could not save your account type. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -55,23 +71,33 @@ export default function OnboardingScreen() {
             <View style={{ gap: Spacing[3], marginBottom: Spacing[6] }}>
               {[
                 {
-                  val: true,
+                  val: "handler" as const,
                   label: "I’m a service dog handler",
                   desc: "I use a trained service animal and want to review service dog access experiences.",
                 },
                 {
-                  val: false,
+                  val: "trainer" as const,
+                  label: "I'm a service dog trainer",
+                  desc: "I train service dogs and need handler-level review questions and jurisdiction guidance.",
+                },
+                {
+                  val: "handler_trainer" as const,
+                  label: "I'm both a handler and trainer",
+                  desc: "I handle a service dog and also train service dogs, including owner-training my own service dog.",
+                },
+                {
+                  val: "community" as const,
                   label: "I’m a dog owner",
                   desc: "I want to find dog-friendly places and share pet dog experience feedback.",
                 },
               ].map(o => (
-                <TouchableOpacity key={String(o.val)} onPress={() => setIsHandler(o.val)} style={[styles.roleCard, isHandler === o.val && styles.roleCardActive]}>
-                  <PawText variant="body" weight="bold" color={isHandler === o.val ? Colors.accent : Colors.text}>{o.label}</PawText>
+                <TouchableOpacity key={o.val} onPress={() => { setAccountUse(o.val); setHandlerAttested(false); setTrainerAttested(false); }} style={[styles.roleCard, accountUse === o.val && styles.roleCardActive]}>
+                  <PawText variant="body" weight="bold" color={accountUse === o.val ? Colors.accent : Colors.text}>{o.label}</PawText>
                   <PawText variant="caption" color={Colors.muted} style={{ marginTop: 4, lineHeight: 18 }}>{o.desc}</PawText>
                 </TouchableOpacity>
               ))}
             </View>
-            <Button onPress={() => setStep(3)} disabled={isHandler === null} fullWidth>Continue</Button>
+            <Button onPress={() => setStep(3)} disabled={accountUse === null} fullWidth>Continue</Button>
           </View>
         )}
 
@@ -84,6 +110,19 @@ export default function OnboardingScreen() {
             <Alert variant="warn" title="Not legal advice" style={{ marginBottom: Spacing[5] }}>
               PawPass content is educational. It is not legal advice or a legal determination.
             </Alert>
+            {(accountUse === "handler" || accountUse === "handler_trainer") ? (
+              <TouchableOpacity onPress={() => setHandlerAttested(!handlerAttested)} style={[styles.agreeRow, handlerAttested && styles.agreeRowActive, {marginBottom:Spacing[3]}]}>
+                <View style={[styles.checkbox, handlerAttested && styles.checkboxChecked]} />
+                <PawText variant="body" color={Colors.muted} style={{flex:1,lineHeight:22}}>I confirm that I am a service dog handler and that my service-dog access reviews will describe real handling experiences.</PawText>
+              </TouchableOpacity>
+            ) : null}
+            {(accountUse === "trainer" || accountUse === "handler_trainer") ? (
+              <TouchableOpacity onPress={() => setTrainerAttested(!trainerAttested)} style={[styles.agreeRow, trainerAttested && styles.agreeRowActive, {marginBottom:Spacing[3]}]}>
+                <View style={[styles.checkbox, trainerAttested && styles.checkboxChecked]} />
+                <PawText variant="body" color={Colors.muted} style={{flex:1,lineHeight:22}}>I confirm that I train service dogs and that my handler-level access reviews will describe real training experiences.</PawText>
+              </TouchableOpacity>
+            ) : null}
+            {error ? <Alert variant="danger" style={{ marginBottom:Spacing[3] }}>{error}</Alert> : null}
             <TouchableOpacity onPress={() => setAgreed(!agreed)} style={[styles.agreeRow, agreed && styles.agreeRowActive]}>
               <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
                 {agreed && <Text style={{ color: "#0D1F0D", fontSize: 12, fontWeight: "900" }}>✓</Text>}
@@ -92,7 +131,7 @@ export default function OnboardingScreen() {
                 I understand that reviews are community experiences, not legal findings, and that PawPass content is educational in nature.
               </PawText>
             </TouchableOpacity>
-            <Button onPress={finish} loading={saving} disabled={!agreed} fullWidth style={{ marginTop: Spacing[5] }}>
+            <Button onPress={finish} loading={saving} disabled={!agreed || ((accountUse === "handler" || accountUse === "handler_trainer") && !handlerAttested) || ((accountUse === "trainer" || accountUse === "handler_trainer") && !trainerAttested)} fullWidth style={{ marginTop: Spacing[5] }}>
               I understand - let&apos;s go
             </Button>
           </View>

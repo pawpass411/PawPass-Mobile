@@ -9,11 +9,11 @@ export const Colors = {
   bg:        "#080F08",
   surface:   "#0D1F0D",
   surface2:  "#122012",
-  surface3:  "#102D1A",
+  surface3:  "#102538",
 
   // Borders
-  border:    "#1a3a1a",
-  border2:   "#2d4a2d",
+  border:    "#19354A",
+  border2:   "#2B4A62",
 
   // Brand accent
   accent:    "#AAFF00",
@@ -29,9 +29,9 @@ export const Colors = {
   // Semantic
   danger:    "#EF4444",
   warn:      "#FCD34D",
-  info:      "#5B80CC",
-  infoDim:   "rgba(91,128,204,0.18)",
-  infoBorder:"rgba(91,128,204,0.45)",
+  info:      "#7FA6FF",
+  infoDim:   "rgba(127,166,255,0.16)",
+  infoBorder:"rgba(127,166,255,0.42)",
   purple:    "#A78BFA",
   orange:    "#FB923C",
   success:   "#AAFF00",
@@ -111,6 +111,13 @@ export const Shadow = {
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 6,
+  },
+  info: {
+    shadowColor: "#7FA6FF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
   },
 } as const;
 

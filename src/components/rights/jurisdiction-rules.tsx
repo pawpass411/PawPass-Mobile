@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking, Modal, ScrollView, TouchableOpacity, View } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
+import { router } from "expo-router";
 import { api, EffectiveRules } from "../../lib/api";
 import { COUNTRIES, CountryCode, REGIONS } from "../../lib/jurisdictions";
 import { Colors, Radius, Spacing } from "../../lib/theme";
 import { Alert, Button, Card, PawText } from "../ui";
+import { BUNDLED_RIGHTS_UPDATED_AT, bundledRules, readStoredRules, storeRules } from "../../lib/offline-rights";
 
 function SelectSheet({
   label,
@@ -82,17 +85,36 @@ export function JurisdictionRules() {
   const [rules, setRules] = useState<EffectiveRules | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isOnline, setIsOnline] = useState(true);
+  const [source, setSource] = useState<"online"|"saved"|"bundled">("bundled");
+  const [updatedAt, setUpdatedAt] = useState(BUNDLED_RIGHTS_UPDATED_AT);
   const countryMeta = COUNTRIES.find(item => item.code === country)!;
+
+  useEffect(() => NetInfo.addEventListener(state => setIsOnline(Boolean(state.isConnected && state.isInternetReachable !== false))), []);
 
   const loadRules = async () => {
     setLoading(true);
     setError("");
+    const fallback = async () => {
+      const saved = await readStoredRules(country, region || undefined);
+      if (saved) { setRules(saved.rules); setUpdatedAt(saved.updatedAt); setSource("saved"); return; }
+      setRules(bundledRules(country, region || undefined));
+      setUpdatedAt(BUNDLED_RIGHTS_UPDATED_AT);
+      setSource("bundled");
+    };
     try {
+      const network = await NetInfo.fetch();
+      const onlineNow = Boolean(network.isConnected && network.isInternetReachable !== false);
+      setIsOnline(onlineNow);
+      if (!onlineNow || !isOnline) { await fallback(); return; }
       const data = await api.rules.effective({ country, state: region || undefined });
       setRules(data.rules);
-    } catch (caught) {
-      setRules(null);
-      setError(caught instanceof Error ? caught.message : "Rights information is unavailable right now.");
+      const stored = await storeRules(country, region || undefined, data.rules);
+      setUpdatedAt(stored.updatedAt);
+      setSource("online");
+    } catch {
+      await fallback();
+      setError("Live updates could not be reached, so PawPass is showing saved offline information.");
     } finally {
       setLoading(false);
     }
@@ -134,6 +156,9 @@ export function JurisdictionRules() {
 
       {rules ? (
         <>
+          <Alert variant={source === "online" ? "info" : "warn"} title={source === "online" ? "Current online information" : "Offline rights information"}>
+            {source === "online" ? "This copy was refreshed from PawPass." : source === "saved" ? "You are viewing the latest version previously saved on this phone." : "You are viewing the rights summary packaged with this app."} Last updated {new Date(updatedAt).toLocaleDateString()}.
+          </Alert>
           <Alert variant="info" title="Rules currently applied">
             {rules.layers.length > 1
               ? `PawPass combined ${rules.layers.join(" + ").replace(/_/g, " ")} guidance for this selection.`
@@ -142,16 +167,50 @@ export function JurisdictionRules() {
                 : "The national or federal baseline is shown."}
           </Alert>
 
-          <Card>
-            <PawText variant="label" color={Colors.accent} style={{ marginBottom: Spacing[2] }}>QUESTIONS A BUSINESS MAY ASK</PawText>
+          {rules.jurisdictionReviewedAt ? (
+            <Alert variant="info" title="Jurisdiction review date">
+              This jurisdiction summary was last reviewed against its official sources on {new Date(`${rules.jurisdictionReviewedAt}T00:00:00`).toLocaleDateString()}.
+            </Alert>
+          ) : null}
+
+          {rules.jurisdictionReviewStatus === "baseline_only" ? (
+            <Alert variant="warn" title="Detailed jurisdiction review pending">
+              PawPass has not yet completed a source-by-source review for this state, province, or territory. The national baseline and official sources are shown without guessing at local rights.
+            </Alert>
+          ) : null}
+
+          {rules.rightsSections?.map(section => (
+            <Card key={section.id}>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: Spacing[2], marginBottom: Spacing[2] }}>
+                <PawText variant="h3" style={{ flex: 1, flexShrink: 1 }}>{section.title}</PawText>
+                <View style={{ flexShrink: 0, alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 5, borderRadius: Radius.full, backgroundColor: section.status === "verified" ? Colors.accentDim : section.status === "pending" ? "rgba(252,211,77,0.14)" : Colors.infoDim }}>
+                  <PawText variant="micro" color={section.status === "verified" ? Colors.accent : section.status === "pending" ? Colors.warn : Colors.info} style={{ textAlign: "center" }}>
+                    {section.status === "verified" ? "VERIFIED" : section.status === "pending" ? "REVIEW PENDING" : "BASELINE"}
+                  </PawText>
+                </View>
+              </View>
+              <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22 }}>{section.summary}</PawText>
+              {section.bullets.map((bullet, index) => (
+                <PawText key={index} variant="body" color={Colors.muted} style={{ lineHeight: 22, marginTop: Spacing[2] }}>• {bullet}</PawText>
+              ))}
+              {section.citations.map((citation, index) => citation.url ? (
+                <TouchableOpacity key={`${citation.ref}-${index}`} onPress={() => Linking.openURL(citation.url!)} style={{ paddingTop: Spacing[3] }}>
+                  <PawText variant="caption" color={Colors.info} weight="semibold">{citation.label ?? citation.ref} →</PawText>
+                </TouchableOpacity>
+              ) : null)}
+            </Card>
+          ))}
+
+          {rules.allowedQuestions.length ? <Card>
+            <PawText variant="label" color={Colors.accent} style={{ marginBottom: Spacing[2] }}>QUESTIONS OR INFORMATION A BUSINESS MAY REQUEST</PawText>
             {rules.allowedQuestions.map((item, index) => (
               <PawText key={item.id ?? index} variant="body" color={Colors.muted} style={{ lineHeight: 22, marginBottom: 6 }}>
                 • {item.question}
               </PawText>
             ))}
-          </Card>
+          </Card> : null}
 
-          <Card>
+          {rules.prohibitedActions.length ? <Card>
             <PawText variant="label" color={Colors.danger} style={{ marginBottom: Spacing[2] }}>WHAT A BUSINESS MAY NOT DO</PawText>
             {rules.prohibitedActions.map((item, index) => (
               <View key={item.id ?? index} style={{ marginBottom: Spacing[2] }}>
@@ -159,6 +218,21 @@ export function JurisdictionRules() {
                 {item.citation ? <PawText variant="micro" color={Colors.dim}>{item.citation}</PawText> : null}
               </View>
             ))}
+          </Card> : null}
+
+          <Card style={{ borderColor: Colors.danger, borderWidth: 1 }}>
+            <PawText variant="label" color={Colors.danger} style={{ marginBottom: Spacing[2] }}>DOCUMENT AN ACCESS CONCERN</PawText>
+            <PawText variant="body" color={Colors.muted} style={{ lineHeight: 22 }}>
+              Store the date, location and details in PawPass. This may affect the place&apos;s PawPass access rating, but it does not begin legal action, mediation, or direct follow-up by PawPass.
+            </PawText>
+            {rules.escalationGuidance?.map(step => (
+              <TouchableOpacity key={step.id} disabled={!step.url} onPress={() => step.url && Linking.openURL(step.url)} style={{ paddingTop: Spacing[3] }}>
+                <PawText variant="body" color={step.url ? Colors.info : Colors.muted}>{step.step}{step.url ? " →" : ""}</PawText>
+              </TouchableOpacity>
+            ))}
+            <View style={{ marginTop: Spacing[3] }}>
+              <Button onPress={() => router.push("/complaint/new")} fullWidth>Document an access concern</Button>
+            </View>
           </Card>
 
           {rules.citations?.length ? (

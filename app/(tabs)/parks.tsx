@@ -17,6 +17,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Alert, Badge, Button, Card, EmptyState, PawText, Skeleton } from "../../src/components/ui";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { api, ParkListing } from "../../src/lib/api";
+import { track } from "../../src/lib/analytics";
+import { getUsableLocation, withTimeout } from "../../src/lib/location";
+import { sortAndFilterParks } from "../../src/lib/park-listing";
 import { Colors, Radius, Spacing, Typography } from "../../src/lib/theme";
 
 const PARK_TYPES = [
@@ -34,6 +37,8 @@ const RADIUS_OPTIONS = [
   { label: "100 mi", meters: 160934 },
   { label: "250 mi", meters: 402336 },
 ];
+
+type SearchScope = "nearby" | "regional";
 
 function formatDistance(park: ParkListing) {
   if (park.drivingDurationText && park.drivingDistanceMiles != null) {
@@ -191,41 +196,36 @@ export default function ParksScreen() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [radius, setRadius] = useState(160934);
+  const [searchScope, setSearchScope] = useState<SearchScope>("nearby");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [parks, setParks] = useState<ParkListing[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [reviewedOnly, setReviewedOnly] = useState(false);
   const hasLoadedInitially = useRef(false);
 
   const sortedParks = useMemo(() => {
-    return [...parks].sort((a, b) => {
-      const aPaid = a.isVerified ? 0 : a.reviewCount > 0 ? 1 : a.source === "google_only" ? 3 : 2;
-      const bPaid = b.isVerified ? 0 : b.reviewCount > 0 ? 1 : b.source === "google_only" ? 3 : 2;
-      if (aPaid !== bPaid) return aPaid - bPaid;
-      const aDistance = a.drivingDistanceMiles ?? a.distanceMiles ?? 999999;
-      const bDistance = b.drivingDistanceMiles ?? b.distanceMiles ?? 999999;
-      return aDistance - bDistance;
-    });
-  }, [parks]);
+    return sortAndFilterParks(parks, reviewedOnly);
+  }, [parks, reviewedOnly]);
 
   const load = useCallback(async (
     mode: "nearby" | "search" = "nearby",
     isRefresh = false,
-    overrides?: { type?: string; radius?: number },
+    overrides?: { type?: string; radius?: number; scope?: SearchScope },
   ) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setNotice(null);
+    const startedAt = Date.now();
 
     try {
       let nextCoords = coords;
       if (!nextCoords) {
-        const permission = await Location.requestForegroundPermissionsAsync();
-        if (permission.status === "granted") {
-          const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          nextCoords = { lat: current.coords.latitude, lng: current.coords.longitude };
+        nextCoords = await getUsableLocation();
+        if (nextCoords) {
           setCoords(nextCoords);
         }
       }
@@ -233,14 +233,15 @@ export default function ParksScreen() {
       const destinationQuery = mode === "search" ? query.trim() : "";
       const effectiveType = overrides?.type ?? typeFilter;
       const effectiveRadius = overrides?.radius ?? radius;
+      const effectiveScope = overrides?.scope ?? searchScope;
       let regionalQuery = destinationQuery;
       let stateQuery: string | undefined;
 
-      if (!regionalQuery && nextCoords && (effectiveType === "STATE_PARK" || effectiveType === "NATIONAL_PARK")) {
-        const [address] = await Location.reverseGeocodeAsync({
+      if (!regionalQuery && effectiveScope === "regional" && nextCoords && (effectiveType === "STATE_PARK" || effectiveType === "NATIONAL_PARK")) {
+        const [address] = await withTimeout(Location.reverseGeocodeAsync({
           latitude: nextCoords.lat,
           longitude: nextCoords.lng,
-        });
+        }), 8_000, "Location lookup took too long.");
         if (effectiveType === "STATE_PARK") {
           stateQuery = address?.region || undefined;
           regionalQuery = stateQuery ?? "";
@@ -257,11 +258,14 @@ export default function ParksScreen() {
         type: effectiveType || undefined,
         lat: useCurrentLocation ? nextCoords?.lat : undefined,
         lng: useCurrentLocation ? nextCoords?.lng : undefined,
+        originLat: nextCoords?.lat,
+        originLng: nextCoords?.lng,
         radius: useCurrentLocation && nextCoords ? effectiveRadius : undefined,
       });
 
       setParks(data.results ?? []);
       setTotal(data.total ?? data.results?.length ?? 0);
+      void track({ eventName:"search_completed", path:"/parks", searchTerm:destinationQuery || undefined, category:effectiveType || "all", state:stateQuery, resultCount:data.results?.length ?? 0, durationMs:Date.now()-startedAt, success:true, metadata:{ scope:effectiveScope, mode } });
 
       if (destinationQuery) {
         setNotice(`Showing parks matching "${destinationQuery}" instead of places near your current location.`);
@@ -276,11 +280,12 @@ export default function ParksScreen() {
       setParks([]);
       setTotal(0);
       setNotice("PawPass could not load parks right now. Try again, or search by city or ZIP.");
+      void track({ eventName:"search_failed", path:"/parks", searchTerm:query.trim() || undefined, category:typeFilter || "all", durationMs:Date.now()-startedAt, success:false, errorCode:"park_search_failed" });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [coords, query, radius, typeFilter]);
+  }, [coords, query, radius, searchScope, typeFilter]);
 
   useEffect(() => {
     if (hasLoadedInitially.current) return;
@@ -292,10 +297,6 @@ export default function ParksScreen() {
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <MobileTopBar active="parks" />
-        <PawText variant="h2" style={{ marginTop: Spacing[3] }}>Parks</PawText>
-        <PawText variant="caption" color={Colors.muted}>
-          Find parks, dog parks, trails, and rules near you.
-        </PawText>
       </View>
 
       <View style={styles.searchSection}>
@@ -315,54 +316,89 @@ export default function ParksScreen() {
               <Ionicons name="close" size={20} color={Colors.muted} />
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Search parks"
+            onPress={() => load(query.trim() ? "search" : "nearby")}
+            style={styles.searchButton}
+          >
+            <Ionicons name="arrow-forward" size={20} color={Colors.bg} />
+          </TouchableOpacity>
         </View>
-        <Button onPress={() => load(query.trim() ? "search" : "nearby")} style={{ marginTop: Spacing[3] }}>
-          Search parks
-        </Button>
+        <View style={styles.quickFilters}>
+          <TouchableOpacity
+            onPress={() => { setSearchScope("nearby"); setQuery(""); void load("nearby", false, {scope:"nearby"}); }}
+            style={[styles.quickChip, searchScope === "nearby" && !query.trim() && styles.chipActive]}
+          >
+            <Ionicons name="navigate" size={14} color={searchScope === "nearby" && !query.trim() ? Colors.accent : Colors.muted} />
+            <Text style={[styles.quickChipText, searchScope === "nearby" && !query.trim() && styles.chipTextActive]}>Near Me</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setReviewedOnly((current) => !current)}
+            style={[styles.quickChip, reviewedOnly && styles.chipActive]}
+          >
+            <Ionicons name="checkmark-circle" size={14} color={Colors.accent} />
+            <Text style={[styles.quickChipText, reviewedOnly && styles.chipTextActive]}>Reviewed</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setFiltersOpen((current) => !current)} style={styles.quickChip}>
+            <Ionicons name="options" size={14} color={Colors.muted} />
+            <Text style={styles.quickChipText}>Filters</Text>
+            <Ionicons name={filtersOpen ? "chevron-up" : "chevron-down"} size={13} color={Colors.muted} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View style={styles.chipBlock}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={PARK_TYPES}
-          keyExtractor={(item) => item.key || "all"}
-          contentContainerStyle={styles.chipList}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() => {
-                setTypeFilter(item.key);
-                void load(query.trim() ? "search" : "nearby", false, { type: item.key });
-              }}
-              style={[styles.chip, typeFilter === item.key && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, typeFilter === item.key && styles.chipTextActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
+      {filtersOpen && (
+        <View style={styles.chipBlock}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={PARK_TYPES}
+            keyExtractor={(item) => item.key || "all"}
+            contentContainerStyle={styles.chipList}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => {
+                  setTypeFilter(item.key);
+                  const regionalType = item.key === "STATE_PARK" || item.key === "NATIONAL_PARK";
+                  const nextScope: SearchScope = regionalType ? "regional" : "nearby";
+                  setSearchScope(nextScope);
+                  void load(query.trim() ? "search" : "nearby", false, { type: item.key, scope: nextScope });
+                }}
+                style={[styles.chip, typeFilter === item.key && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, typeFilter === item.key && styles.chipTextActive]}>{item.label}</Text>
+              </TouchableOpacity>
+            )}
+          />
+          {searchScope === "regional" && (typeFilter === "STATE_PARK" || typeFilter === "NATIONAL_PARK") && !query.trim() ? (
+            <View style={styles.regionalNotice}>
+              <Ionicons name="map" size={15} color={Colors.info} />
+              <Text style={styles.regionalNoticeText}>{typeFilter === "STATE_PARK" ? "Statewide" : "Nationwide"} search - mileage filters are off</Text>
+            </View>
+          ) : (
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={RADIUS_OPTIONS}
+              keyExtractor={(item) => item.label}
+              contentContainerStyle={styles.chipList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setRadius(item.meters);
+                    setSearchScope("nearby");
+                    if (!query.trim()) void load("nearby", false, { radius: item.meters, scope:"nearby" });
+                  }}
+                  style={[styles.chip, radius === item.meters && searchScope === "nearby" && styles.chipActiveBlue]}
+                >
+                  <Text style={[styles.chipText, radius === item.meters && searchScope === "nearby" && styles.chipTextBlue]}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+            />
           )}
-        />
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={RADIUS_OPTIONS}
-          keyExtractor={(item) => item.label}
-          contentContainerStyle={styles.chipList}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() => {
-                setRadius(item.meters);
-                if (!query.trim()) void load("nearby", false, { radius: item.meters });
-              }}
-              style={[styles.chip, radius === item.meters && styles.chipActiveBlue]}
-            >
-              <Text style={[styles.chipText, radius === item.meters && styles.chipTextBlue]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
+        </View>
+      )}
 
       {notice && (
         <Alert variant="warn" style={{ marginHorizontal: Spacing[4], marginTop: Spacing[3] }}>
@@ -410,14 +446,14 @@ export default function ParksScreen() {
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: Spacing[4],
-    paddingBottom: Spacing[3],
+    paddingBottom: Spacing[2],
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   searchSection: {
     paddingHorizontal: Spacing[4],
-    paddingVertical: Spacing[3],
+    paddingVertical: Spacing[2],
     backgroundColor: Colors.surface,
   },
   searchRow: {
@@ -437,6 +473,38 @@ const styles = StyleSheet.create({
     fontFamily: Typography.family,
     fontSize: Typography.base,
   },
+  searchButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickFilters: {
+    flexDirection: "row",
+    gap: Spacing[2],
+    paddingTop: Spacing[2],
+  },
+  quickChip: {
+    flex: 1,
+    minHeight: 34,
+    paddingHorizontal: Spacing[2],
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Colors.border2,
+    backgroundColor: Colors.bg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  quickChipText: {
+    color: Colors.muted,
+    fontFamily: Typography.family,
+    fontSize: 11,
+    fontWeight: "800",
+  },
   chipBlock: {
     backgroundColor: Colors.surface,
     paddingBottom: Spacing[2],
@@ -448,6 +516,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing[1],
     gap: Spacing[2],
   },
+  regionalNotice:{marginHorizontal:Spacing[4],marginVertical:Spacing[1],minHeight:38,paddingHorizontal:Spacing[3],borderRadius:Radius.md,borderWidth:1,borderColor:Colors.info,backgroundColor:Colors.infoDim,flexDirection:"row",alignItems:"center",gap:Spacing[2]},
+  regionalNoticeText:{color:Colors.info,fontFamily:Typography.family,fontSize:12,fontWeight:"800"},
   chip: {
     paddingHorizontal: Spacing[3],
     paddingVertical: 7,

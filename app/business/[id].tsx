@@ -10,6 +10,7 @@ import { Card, Badge, Alert, PawText, TrustScoreRing, StarRating, Input, Button 
 import { ReviewForm } from "../../src/components/reviews/review-form";
 import { api, BusinessDetail } from "../../src/lib/api";
 import { Colors, Spacing, Radius } from "../../src/lib/theme";
+import { track } from "../../src/lib/analytics";
 
 const TABS = ["Overview", "Reviews", "Write Review"] as const;
 type Tab = typeof TABS[number];
@@ -35,7 +36,7 @@ export default function BusinessDetailScreen() {
   useEffect(() => {
     if (!id) return;
     api.businesses.get(id)
-      .then(setBiz)
+      .then(data => { setBiz(data); void track({ eventName:"profile_viewed", path:`/business/${id}`, targetType:"business", targetId:id }); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);

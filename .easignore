@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+.expo-export-check/
+.expo-export-check-2/
+.expo-store-audit/
+.expo-release-check/
+dist/
+.env.local
+expo-err.log
+expo-out.log
+phone-*-test.png

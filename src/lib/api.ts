@@ -4,6 +4,7 @@
 
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+import { telemetryContext } from "./telemetry-context";
 
 const BASE_URL = (
   process.env.EXPO_PUBLIC_API_BASE_URL ??
@@ -18,32 +19,57 @@ export function configureApiAuth(getToken: AuthTokenGetter) {
   authTokenGetter = getToken;
 }
 
+type TelemetryCallback = (event: { eventName: "api_failed"; path: string; success: false; errorCode: string; durationMs: number }) => void;
+let telemetryCallback: TelemetryCallback | null = null;
+export function configureApiTelemetry(callback: TelemetryCallback | null) { telemetryCallback = callback; }
+
 // ─── REQUEST HELPER ──────────────────────────────────
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  requestOptions: { auth?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
-  const clerkToken = authTokenGetter
+  const shouldAuthenticate = requestOptions.auth !== false;
+  const clerkToken = shouldAuthenticate && authTokenGetter
     ? await authTokenGetter().catch(() => null)
     : null;
-  const legacyToken = clerkToken
+  const legacyToken = !shouldAuthenticate || clerkToken
     ? null
     : await SecureStore.getItemAsync("session_token").catch(() => null);
   const token = clerkToken ?? legacyToken;
 
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    ...options,
-    headers: {
-      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestOptions.timeoutMs ?? 20_000);
+  const startedAt = Date.now();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/api${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...(!isFormData ? { "Content-Type": "application/json" } : {}),
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "X-PawPass-Platform": telemetryContext.platform,
+        "X-PawPass-App-Version": telemetryContext.appVersion,
+        "X-PawPass-Session-Id": telemetryContext.sessionId,
+        ...(options.headers ?? {}),
+      },
+    });
+  } catch (error) {
+    if (path !== "/analytics/events") telemetryCallback?.({ eventName: "api_failed", path, success: false, errorCode: controller.signal.aborted ? "timeout" : "network_error", durationMs: Date.now() - startedAt });
+    if (controller.signal.aborted) {
+      throw new ApiError(0, "PawPass took too long to respond. Check your connection and try again.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (path !== "/analytics/events") telemetryCallback?.({ eventName: "api_failed", path, success: false, errorCode: `http_${res.status}`, durationMs: Date.now() - startedAt });
     throw new ApiError(res.status, body.error ?? `HTTP ${res.status}`);
   }
 
@@ -61,6 +87,16 @@ export class ApiError extends Error {
 
 // Businesses
 export const api = {
+  analytics: {
+    events: (events: Record<string, unknown>[]) => request<{ accepted: number }>("/analytics/events", {
+      method: "POST",
+      body: JSON.stringify({ events }),
+    }, { auth: true, timeoutMs: 10_000 }),
+  },
+  pushDevices: {
+    register: (data: { expoPushToken: string; platform: "android" | "ios"; appVersion?: string; deviceName?: string }) =>
+      request<{ ok: boolean; deviceId: string }>("/push-devices", { method: "POST", body: JSON.stringify(data) }),
+  },
   places: {
     ensureRecord: (data: {
       googlePlaceId: string;
@@ -86,7 +122,7 @@ export const api = {
       p.set("lng", String(params.lng));
       if (params.radius) p.set("radius", String(params.radius));
       if (params.type) p.set("type", params.type);
-      return request<{ results: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/nearby?${p}`);
+      return request<{ results: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/nearby?${p}`, {}, { auth: false });
     },
 
     search: (params: { query: string; type?: string; lat?: number; lng?: number }) => {
@@ -95,7 +131,7 @@ export const api = {
       if (params.type) p.set("type", params.type);
       if (params.lat != null) p.set("lat", String(params.lat));
       if (params.lng != null) p.set("lng", String(params.lng));
-      return request<{ results: UnifiedListing[]; featured?: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/search?${p}`);
+      return request<{ results: UnifiedListing[]; featured?: UnifiedListing[]; total?: number; databaseAvailable?: boolean }>(`/places/search?${p}`, {}, { auth: false });
     },
   },
 
@@ -139,20 +175,22 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-    list: (params?: { q?: string; state?: string; type?: string; lat?: number; lng?: number; radius?: number; page?: number }) => {
+    list: (params?: { q?: string; state?: string; type?: string; lat?: number; lng?: number; originLat?: number; originLng?: number; radius?: number; page?: number }) => {
       const p = new URLSearchParams();
       if (params?.q)     p.set("q", params.q);
       if (params?.state) p.set("state", params.state);
       if (params?.type)  p.set("type", params.type);
       if (params?.lat != null) p.set("lat", String(params.lat));
       if (params?.lng != null) p.set("lng", String(params.lng));
+      if (params?.originLat != null) p.set("originLat", String(params.originLat));
+      if (params?.originLng != null) p.set("originLng", String(params.originLng));
       if (params?.radius) p.set("radius", String(params.radius));
       if (params?.page)  p.set("page", String(params.page));
-      return request<{ results: ParkListing[]; total: number; pages: number }>(`/parks?${p}`);
+      return request<{ results: ParkListing[]; total: number; pages: number }>(`/parks?${p}`, {}, { auth: false });
     },
 
     get: (id: string) =>
-      request<{ park: ParkDetail }>(`/parks/${id}`),
+      request<{ park: ParkDetail }>(`/parks/${id}`, {}, { auth: false }),
   },
 
   reviews: {
@@ -161,14 +199,31 @@ export const api = {
       parkId?: string;
       overallRating: number;
       accessRating?: number;
+      tags?: string[];
+      accessIssueType?: string;
       body: string;
+      imageUrls?: string[];
+      verificationPhotoUrls?: string[];
+      receiptProofUrls?: string[];
+      proofTypes?: string[];
+      gpsLat?: number;
+      gpsLng?: number;
+      gpsAccuracy?: number;
     }) => request<{ review: Review }>("/reviews", { method: "POST", body: JSON.stringify(data) }),
 
     createForm: (form: FormData) =>
       request<{ review: Review }>("/reviews", { method: "POST", body: form }),
 
-    update: (id: string, data: { overallRating: number; accessRating?: number | null; body: string }) =>
+    update: (id: string, data: {
+      overallRating: number; accessRating?: number | null; body: string; tags?: string[];
+      accessIssueType?: string | null; retainedImageUrls?: string[]; retainedVerificationPhotoUrls?: string[];
+      retainedReceiptProofUrls?: string[]; newImageUrls?: string[]; newVerificationPhotoUrls?: string[];
+      newReceiptProofUrls?: string[]; gpsLat?: number; gpsLng?: number; gpsAccuracy?: number;
+    }) =>
       request<{ review: Review }>(`/reviews/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+    updateForm: (id: string, form: FormData) =>
+      request<{ review: Review }>(`/reviews/${id}`, { method: "PATCH", body: form }),
 
     list: (params?: { locationId?: string; parkId?: string; mine?: boolean; page?: number }) => {
       const p = new URLSearchParams();
@@ -178,6 +233,10 @@ export const api = {
       if (params?.page)       p.set("page", String(params.page));
       return request<{ reviews: Review[]; total: number }>(`/reviews?${p}`);
     },
+  },
+
+  reviewUploads: {
+    create: (form: FormData) => request<{ url: string }>("/review-uploads", { method: "POST", body: form }, { timeoutMs: 45_000 }),
   },
 
   complaints: {
@@ -218,11 +277,14 @@ export const api = {
   users: {
     me: () => request<{ user: UserProfile }>("/users/me"),
 
-    update: (data: { name?: string; isHandler?: boolean }) =>
+    update: (data: { name?: string; bio?: string; phone?: string; avatarUrl?: string | null; isHandler?: boolean; accountUse?: "handler" | "trainer" | "handler_trainer" | "community"; handlerAttestationAccepted?: boolean; trainerAttestationAccepted?: boolean }) =>
       request<{ user: UserProfile }>("/users/me", {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+
+    uploadAvatar: (form: FormData) =>
+      request<{ imageUrl: string }>("/uploads/profile-image", { method: "POST", body: form }),
   },
 
   contact: {
@@ -406,6 +468,17 @@ export interface Review {
   overallRating: number;
   accessRating: number | null;
   body: string;
+  tags?: string[];
+  accessIssueType?: string | null;
+  imageUrls?: string[];
+  verificationPhotoUrls?: string[];
+  receiptProofUrls?: string[];
+  gpsLat?: number | null;
+  gpsLng?: number | null;
+  gpsAccuracy?: number | null;
+  businessLocationId?: string | null;
+  parkId?: string | null;
+  isHandlerReview?: boolean;
   createdAt: string;
   user: { name: string | null; isHandler: boolean };
   businessResponse?: { body: string; createdAt: string } | null;
@@ -453,6 +526,8 @@ export interface UserProfile {
   name: string | null;
   email: string;
   avatarUrl: string | null;
+  bio: string | null;
+  phone: string | null;
   role: string;
   isHandler: boolean;
   handlerVerified: boolean;
@@ -492,4 +567,15 @@ export interface EffectiveRules {
   citations: { ref: string; label?: string; url?: string | null }[];
   notes: string[];
   layers: string[];
+  jurisdictionReviewStatus: "verified" | "partial" | "baseline_only";
+  jurisdictionReviewedAt?: string;
+  escalationGuidance?: { id: string; step: string; url?: string }[];
+  rightsSections: {
+    id: "public_access" | "in_training" | "housing" | "employment" | "air_travel" | "public_transit" | "education" | "federal_property" | "disaster_assistance" | "definitions";
+    title: string;
+    summary: string;
+    bullets: string[];
+    citations: { ref: string; label?: string; url?: string | null }[];
+    status: "verified" | "baseline" | "pending";
+  }[];
 }

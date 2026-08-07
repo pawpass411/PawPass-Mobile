@@ -8,13 +8,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Alert, Badge, Button, Card, EmptyState, PawText, Skeleton } from "../../src/components/ui";
 import { PawPassMark } from "../../src/components/ui/Logo";
 import { MobileTopBar } from "../../src/components/ui/MobileTopBar";
 import { api, UnifiedListing } from "../../src/lib/api";
+import { track } from "../../src/lib/analytics";
+import { getUsableLocation } from "../../src/lib/location";
 import { Colors, Radius, Spacing, Typography } from "../../src/lib/theme";
 
 const MILE_OPTIONS = [10, 25, 50, 100, 250];
@@ -193,21 +194,25 @@ export default function DiscoverScreen() {
   }, [results]);
 
   const requestLocation = useCallback(async () => {
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (permission.status !== "granted") {
-      setMessage("Location is off. Search by city, ZIP, or place name to browse PawPass listings.");
+    try {
+      const next = await getUsableLocation();
+      if (!next) {
+        setMessage("Location is off. Search by city, ZIP, or place name to browse PawPass listings.");
+        return null;
+      }
+      setCoords(next);
+      return next;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Location was unavailable. Search by city or ZIP.");
       return null;
     }
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    const next = { lat: position.coords.latitude, lng: position.coords.longitude };
-    setCoords(next);
-    return next;
   }, []);
 
   const loadNearby = useCallback(async (nextCoords = coords, isRefresh = false) => {
     if (!nextCoords) return;
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
+    const startedAt = Date.now();
     try {
       const data = await api.places.nearby({
         ...nextCoords,
@@ -216,8 +221,10 @@ export default function DiscoverScreen() {
       });
       setResults(data.results ?? []);
       setMessage(`${data.results?.length ?? 0} nearby listings loaded`);
+      void track({ eventName:"search_completed", path:"/discover", category:type || "all", resultCount:data.results?.length ?? 0, durationMs:Date.now()-startedAt, success:true, metadata:{ mode:"nearby", radiusMiles } });
     } catch (err: any) {
       setError(err?.message ?? "Nearby search failed.");
+      void track({ eventName:"search_failed", path:"/discover", category:type || "all", durationMs:Date.now()-startedAt, success:false, errorCode:"nearby_failed" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -235,12 +242,14 @@ export default function DiscoverScreen() {
 
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
+    const startedAt = Date.now();
     try {
+      const searchOrigin = coords ?? await requestLocation();
       const data = await api.places.search({
         query: trimmed,
         type: type || undefined,
-        lat: coords?.lat,
-        lng: coords?.lng,
+        lat: searchOrigin?.lat,
+        lng: searchOrigin?.lng,
       });
       const combined = [...(data.featured ?? []), ...(data.results ?? [])];
       const deduped = combined.filter((item, index, all) => {
@@ -249,8 +258,10 @@ export default function DiscoverScreen() {
       });
       setResults(deduped);
       setMessage(`${deduped.length} listings found`);
+      void track({ eventName:"search_completed", path:"/discover", searchTerm:trimmed, category:type || "all", resultCount:deduped.length, durationMs:Date.now()-startedAt, success:true, metadata:{ mode:"text" } });
     } catch (err: any) {
       setError(err?.message ?? "Search failed. Try adding a city or ZIP code.");
+      void track({ eventName:"search_failed", path:"/discover", searchTerm:trimmed, category:type || "all", durationMs:Date.now()-startedAt, success:false, errorCode:"text_search_failed" });
     } finally {
       setLoading(false);
       setRefreshing(false);

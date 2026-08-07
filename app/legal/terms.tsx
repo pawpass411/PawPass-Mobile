@@ -19,7 +19,7 @@ PawPass is not a legal service. Content on PawPass is educational and community-
   },
   {
     title: "3. User Accounts",
-    body: `You must create an account to access most features. You are responsible for maintaining the confidentiality of your credentials and for all activity under your account. You must be at least 13 years old to create an account.
+    body: `You must create an account to access most features. You are responsible for maintaining the confidentiality of your credentials and for all activity under your account. You must be at least 14 years old to create an account.
 
 You agree to provide accurate information and to update it as needed. We reserve the right to suspend or terminate accounts that violate these terms.`,
   },
